@@ -143,7 +143,7 @@ async function sendTestLog() {
           {
             title: 'Webhook connected',
             description:
-              'Purchase records from ketaminecc.site will be delivered here.\n' +
+              'Purchase records from ketaminecc.website will be delivered here.\n' +
               'Records are encrypted with AES-256-GCM; use `/verify <code>` to reveal them.',
             color: 0x3dd68c,
             timestamp: new Date().toISOString(),

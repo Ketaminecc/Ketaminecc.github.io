@@ -1,9 +1,9 @@
 # /etc/caddy/Caddyfile
-# GoDaddy DNS points ketaminecc.site at this server's public IPv4.
+# GoDaddy DNS points ketaminecc.website at this server's public IPv4.
 # Caddy obtains and renews the Let's Encrypt certificate automatically.
 # No Cloudflare involved.
 
-ketaminecc.site, www.ketaminecc.site {
+ketaminecc.website, www.ketaminecc.website {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:3000
 

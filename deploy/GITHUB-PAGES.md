@@ -3,8 +3,8 @@
 GitHub Pages serves only static files. The API, database, Stripe webhooks, admin
 sessions, and bot bridge run on Render.
 
-- Storefront: `https://ketaminecc.site` (GitHub Pages)
-- API: `https://api.ketaminecc.site` (Render)
+- Storefront: `https://ketaminecc.website` (GitHub Pages)
+- API: `https://api.ketaminecc.website` (Render)
 - DNS: GoDaddy
 - No Cloudflare.
 
@@ -35,7 +35,7 @@ Never commit real secrets.
 Repository → **Settings → Pages**:
 
 1. Source: **GitHub Actions**.
-2. Custom domain: `ketaminecc.site` → Save.
+2. Custom domain: `ketaminecc.website` → Save.
 3. Wait for DNS, then enable **Enforce HTTPS**.
 
 Every push to `main` runs `.github/workflows/pages.yml`, which publishes only the
@@ -81,10 +81,10 @@ Add for GitHub Pages:
    - `BOT_SHARED_SECRET` (same as `ketaminebot`)
    - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
    - `DISCORD_PURCHASE_WEBHOOK_URL` (optional)
-4. Service → **Settings → Custom Domains** → add `api.ketaminecc.site`.
+4. Service → **Settings → Custom Domains** → add `api.ketaminecc.website`.
    Render shows a target like `ketamine-api.onrender.com`; put that in the GoDaddy
    `api` CNAME record.
-5. Confirm `https://api.ketaminecc.site/api/health` returns `{"ok":true}`.
+5. Confirm `https://api.ketaminecc.website/api/health` returns `{"ok":true}`.
 
 The persistent disk requires the **Starter** plan (about $7/mo). Without a disk,
 SQLite is erased on every deploy/restart and every license is lost.
@@ -103,7 +103,7 @@ Render sets `PORT`; the app reads it automatically. Do not set `PORT` manually.
 
 Dashboard → Developers → Webhooks → Add endpoint:
 
-- URL: `https://api.ketaminecc.site/api/webhook/stripe`
+- URL: `https://api.ketaminecc.website/api/webhook/stripe`
 - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
   `checkout.session.expired`, `charge.refunded`
 
@@ -117,7 +117,7 @@ Stripe success/cancel URLs use `PUBLIC_SITE_URL`, so buyers return to GitHub Pag
 `C:\Users\angel\OneDrive\Documents\ketaminebot\.env`:
 
 ```ini
-SITE_API_URL=https://api.ketaminecc.site
+SITE_API_URL=https://api.ketaminecc.website
 BOT_SHARED_SECRET=<same as Render>
 OWNER_ID=<your Discord user ID>
 ```
@@ -128,7 +128,7 @@ Restart the bot, run `/verify` as the owner.
 
 ## 7. Cookies and previews
 
-Production uses `api.ketaminecc.site` + `ketaminecc.site`: same site, so
+Production uses `api.ketaminecc.website` + `ketaminecc.website`: same site, so
 `COOKIE_SAME_SITE=lax` works and auth cookies are sent on API calls.
 
 If you test the `*.github.io` preview against `*.onrender.com`, that is cross-site:
@@ -140,10 +140,10 @@ Chrome may still block third-party cookies; test the real domain for checkout.
 ## 8. Verification
 
 ```powershell
-nslookup ketaminecc.site 8.8.8.8
-nslookup api.ketaminecc.site 8.8.8.8
-curl.exe -I https://ketaminecc.site
-curl.exe https://api.ketaminecc.site/api/health
+nslookup ketaminecc.website 8.8.8.8
+nslookup api.ketaminecc.website 8.8.8.8
+curl.exe -I https://ketaminecc.website
+curl.exe https://api.ketaminecc.website/api/health
 ```
 
 Then in a browser: register → purchase (demo or Stripe test) → key appears on

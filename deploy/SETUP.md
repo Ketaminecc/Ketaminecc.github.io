@@ -1,4 +1,4 @@
-# Deploying Ketamine.cc to ketaminecc.site (GoDaddy DNS)
+# Deploying Ketamine.cc to ketaminecc.website (GoDaddy DNS)
 
 GoDaddy registers the domain and hosts DNS. It does **not** run this Node app on its
 shared hosting. The site must live on a small VPS that stays online.
@@ -10,7 +10,7 @@ Minimum VPS: 1 vCPU, 1 GB RAM, Ubuntu 24.04, public IPv4. Any provider works
 
 ## 1. GoDaddy DNS
 
-1. Sign in → **My Products → Domains → ketaminecc.site → DNS**.
+1. Sign in → **My Products → Domains → ketaminecc.website → DNS**.
 2. Delete GoDaddy's parked-page records:
    - the `A` record for `@` pointing at a GoDaddy parking IP,
    - any **Forwarding** entry for `@` or `www`.
@@ -25,7 +25,7 @@ Minimum VPS: 1 vCPU, 1 GB RAM, Ubuntu 24.04, public IPv4. Any provider works
 5. Propagation usually takes 5–30 minutes. Check:
 
    ```powershell
-   nslookup ketaminecc.site 8.8.8.8
+   nslookup ketaminecc.website 8.8.8.8
    ```
 
 ---
@@ -70,7 +70,7 @@ On the VPS, create `/srv/ketamine/server/.env`:
 
 ```ini
 NODE_ENV=production
-PUBLIC_BASE_URL=https://ketaminecc.site
+PUBLIC_BASE_URL=https://ketaminecc.website
 HOST=127.0.0.1
 PORT=3000
 DEMO_MODE=false
@@ -117,7 +117,7 @@ systemctl reload caddy
 Caddy requests the certificate once DNS resolves to the VPS. Then:
 
 ```powershell
-curl.exe -I https://ketaminecc.site
+curl.exe -I https://ketaminecc.website
 ```
 
 Expected: `HTTP/2 200` (or a redirect to `/`, both fine) with a valid certificate.
@@ -128,7 +128,7 @@ Expected: `HTTP/2 200` (or a redirect to `/`, both fine) with a valid certificat
 
 Stripe Dashboard → **Developers → Webhooks → Add endpoint**:
 
-- URL: `https://ketaminecc.site/api/webhook/stripe`
+- URL: `https://ketaminecc.website/api/webhook/stripe`
 - Events:
   - `checkout.session.completed`
   - `checkout.session.async_payment_succeeded`
@@ -151,7 +151,7 @@ to live keys and refresh the webhook secret.
 In `C:\Users\angel\OneDrive\Documents\ketaminebot\.env`:
 
 ```ini
-SITE_API_URL=https://ketaminecc.site
+SITE_API_URL=https://ketaminecc.website
 BOT_SHARED_SECRET=<same as the website>
 OWNER_ID=<your Discord user ID>
 ```

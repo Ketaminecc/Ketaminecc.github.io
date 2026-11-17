@@ -18,11 +18,11 @@ services:
       - key: NODE_ENV
         value: production
       - key: PUBLIC_SITE_URL
-        value: https://ketaminecc.site
+        value: https://ketaminecc.website
       - key: PUBLIC_BASE_URL
-        value: https://api.ketaminecc.site
+        value: https://api.ketaminecc.website
       - key: CORS_ORIGINS
-        value: https://ketaminecc.site,https://www.ketaminecc.site
+        value: https://ketaminecc.website,https://www.ketaminecc.website
       - key: COOKIE_SAME_SITE
         value: lax
       - key: DEMO_MODE

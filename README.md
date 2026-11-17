@@ -67,7 +67,7 @@ Orders cannot be fulfilled without the authenticated account that created them.
 1. In the Stripe Dashboard, complete business activation.
 2. Copy the **secret key** (`sk_live_…`) into `server/.env` as `STRIPE_SECRET_KEY`.
 3. Add a webhook endpoint:
-   - URL: `https://api.ketaminecc.site/api/webhook/stripe`
+   - URL: `https://api.ketaminecc.website/api/webhook/stripe`
    - Events:
      - `checkout.session.completed`
      - `checkout.session.async_payment_succeeded`
@@ -75,7 +75,7 @@ Orders cannot be fulfilled without the authenticated account that created them.
      - `charge.refunded`
 4. Copy the endpoint **signing secret** (`whsec_…`) into `STRIPE_WEBHOOK_SECRET`.
 5. Set `DEMO_MODE=false`, `NODE_ENV=production`,
-   `PUBLIC_BASE_URL=https://api.ketaminecc.site`, `PUBLIC_SITE_URL=https://ketaminecc.site`.
+   `PUBLIC_BASE_URL=https://api.ketaminecc.website`, `PUBLIC_SITE_URL=https://ketaminecc.website`.
 6. Restart/redeploy the server.
 
 Prices are sent to Stripe dynamically from the admin-managed product records, so editing a
@@ -91,8 +91,8 @@ Test cards: `4242 4242 4242 4242`, any future expiry, any CVC.
 Two supported layouts:
 
 **A. GitHub Pages static frontend + Render API (split hosting)**
-Step-by-step: **`deploy/GITHUB-PAGES.md`**. Pages serves `ketaminecc.site`; Render serves
-`api.ketaminecc.site`; `render.yaml` and `.github/workflows/pages.yml` are included.
+Step-by-step: **`deploy/GITHUB-PAGES.md`**. Pages serves `ketaminecc.website`; Render serves
+`api.ketaminecc.website`; `render.yaml` and `.github/workflows/pages.yml` are included.
 A Render persistent disk (Starter plan) is required so SQLite survives deploys.
 
 **B. One Ubuntu VPS (everything on one box)**
@@ -101,14 +101,14 @@ Step-by-step: **`deploy/SETUP.md`**. Ready-to-copy `deploy/Caddyfile` and
 
 Minimum: one Linux VPS (1 vCPU / 1 GB is enough), your domain's DNS pointed at it.
 
-1. **DNS** — create an `A` record for `ketaminecc.site` (and optionally `www`) pointing to
+1. **DNS** — create an `A` record for `ketaminecc.website` (and optionally `www`) pointing to
    the VPS IP. If your registrar offers proxy/CDN, leave it **DNS-only**.
 2. **Install** Node.js 22+ and Caddy.
 3. **Copy** this folder to `/srv/ketamine` and run `npm install --omit=dev` in `server/`.
 4. **Environment** — edit `/srv/ketamine/server/.env`:
    ```ini
    NODE_ENV=production
-   PUBLIC_BASE_URL=https://ketaminecc.site
+   PUBLIC_BASE_URL=https://ketaminecc.website
    DEMO_MODE=false
    STRIPE_SECRET_KEY=sk_live_…
    STRIPE_WEBHOOK_SECRET=whsec_…
@@ -134,7 +134,7 @@ Minimum: one Linux VPS (1 vCPU / 1 GB is enough), your domain's DNS pointed at i
    ```
 6. **Caddy** — automatic Let's Encrypt TLS, no Cloudflare involved:
    ```caddy
-   ketaminecc.site, www.ketaminecc.site {
+   ketaminecc.website, www.ketaminecc.website {
        reverse_proxy 127.0.0.1:3000
        encode zstd gzip
        header {
@@ -180,7 +180,7 @@ Owner gating: the bot accepts `/verify` from the guild owner, or from any ID lis
 Bot configuration (`ketaminebot/.env`):
 
 ```ini
-SITE_API_URL=http://localhost:3000      # use https://ketaminecc.site in production
+SITE_API_URL=http://localhost:3000      # use https://ketaminecc.website in production
 BOT_SHARED_SECRET=…                     # must equal server/.env
 OWNER_ID=                               # optional extra owner IDs
 ```

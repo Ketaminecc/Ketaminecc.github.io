@@ -517,10 +517,12 @@ h3 {
 
 .brand .santa-hat {
   position: absolute;
-  left: -23px;
-  top: -27px;
-  width: 54px;
+  left: -9px;
+  top: -24px;
+  width: 38px;
   height: auto;
+  transform: rotate(-6deg);
+  transform-origin: 50% 90%;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5));
   pointer-events: none;
   z-index: 2;
@@ -666,13 +668,6 @@ h3 {
 .simple-hero {
   text-align: center;
   padding: clamp(2.8rem, 8vw, 5.2rem) 0 clamp(1.6rem, 4vw, 2.6rem);
-}
-
-.simple-hero .hero-hat {
-  width: clamp(96px, 12vw, 138px);
-  height: auto;
-  margin: 0 auto 1.1rem;
-  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55));
 }
 
 .simple-hero h1 {
@@ -1804,13 +1799,6 @@ h3 {
   min-height: 68px;
 }
 
-.app-topbar .brand .santa-hat {
-  width: 42px;
-  height: auto;
-  left: -18px;
-  top: -21px;
-}
-
 .app-main {
   flex: 1;
   padding: clamp(2rem, 5vw, 3.5rem) 0 4rem;
@@ -2906,11 +2894,6 @@ h3 {
   margin-top: 0.3rem;
 }
 
-.admin-side .brand .santa-hat {
-  left: -12px;
-  top: -18px;
-}
-
 .admin-side .side-foot {
   margin-top: auto;
   border-top: 1px solid var(--line);
@@ -3232,12 +3215,6 @@ h3 {
     padding: 0.7rem var(--pad);
     gap: 0.6rem;
   }
-  .admin-side .brand .santa-hat {
-    width: 38px;
-    height: auto;
-    left: -9px;
-    top: -20px;
-  }
   .admin-side .brand-meta {
     display: none;
   }
@@ -3287,12 +3264,6 @@ h3 {
   }
   .brand-meta {
     display: none;
-  }
-  .brand .santa-hat {
-    width: 42px;
-    height: auto;
-    left: -18px;
-    top: -22px;
   }
   .trust-strip {
     grid-template-columns: 1fr;
