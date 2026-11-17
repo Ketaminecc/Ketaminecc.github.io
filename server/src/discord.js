@@ -158,4 +158,42 @@ async function sendTestLog() {
   }
 }
 
-module.exports = { sendPurchaseLog, sendTestLog, getWebhookUrl, isValidWebhook };
+async function sendPaymentClaim({ order, method, reference }) {
+  const webhookUrl = await getWebhookUrl();
+  if (!webhookUrl) return { sent: false, reason: 'not_configured' };
+  const labels = { cashapp: 'Cash App', paypal: 'PayPal', crypto: 'Crypto' };
+  const amount = `$${(order.amount_cents / 100).toFixed(2)} ${String(order.currency || 'usd').toUpperCase()}`;
+  const safeRef = String(reference || '').replace(/`/g, "'").slice(0, 180);
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        username: `${config.brand} · Payments`,
+        embeds: [
+          {
+            title: `Payment claim · ${order.number}`,
+            description:
+              'A buyer says they paid. Verify the payment, then confirm it in Admin → Orders.\n' +
+              'Confirming issues the license automatically.',
+            color: 0xf0b429,
+            fields: [
+              { name: 'Order', value: `\`${order.number}\``, inline: true },
+              { name: 'Amount', value: amount, inline: true },
+              { name: 'Method', value: labels[method] || method || '—', inline: true },
+              { name: 'Customer', value: order.customer_email || '—' },
+              { name: 'Reference', value: safeRef ? `\`${safeRef}\`` : 'No reference provided' },
+            ],
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    return { sent: res.ok, status: res.status };
+  } catch (err) {
+    return { sent: false, reason: 'network', detail: String(err.message || err).slice(0, 300) };
+  }
+}
+
+module.exports = { sendPurchaseLog, sendTestLog, sendPaymentClaim, getWebhookUrl, isValidWebhook };

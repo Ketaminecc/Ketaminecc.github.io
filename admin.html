@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=15">
+  <link rel="stylesheet" href="/assets/styles.css?v=16">
 </head>
 <body class="page-app" data-snow="off">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -106,6 +106,7 @@
           <select class="select" id="order-status" style="max-width:190px">
             <option value="">All statuses</option>
             <option value="paid">Paid</option>
+            <option value="awaiting_payment">Awaiting payment</option>
             <option value="pending">Pending</option>
             <option value="refunded">Refunded</option>
             <option value="expired">Expired</option>
@@ -304,6 +305,42 @@
           </div>
 
           <div class="admin-card">
+            <h3>Manual payments</h3>
+            <div class="banner info" id="manual-banner">Checking manual payments…</div>
+            <div class="form-error" id="manual-error" role="alert"></div>
+            <form id="manual-form">
+              <label style="display:flex;align-items:center;gap:.55rem;margin:.5rem 0 .9rem;font-size:.8rem">
+                <input type="checkbox" id="setting-manual-enabled">
+                Enable manual checkout
+              </label>
+              <span class="hint" style="display:block;margin:-.5rem 0 .9rem;font-size:.72rem;color:var(--muted)">Takes priority over Stripe while enabled.</span>
+              <div class="field">
+                <label for="setting-cashapp">Cash App cashtag</label>
+                <input class="input" id="setting-cashapp" placeholder="$yourname">
+              </div>
+              <div class="field">
+                <label for="setting-paypal">PayPal.me link</label>
+                <input class="input" id="setting-paypal" placeholder="https://paypal.me/yourname">
+              </div>
+              <div class="field">
+                <label for="setting-crypto">Crypto addresses / instructions</label>
+                <textarea class="input" id="setting-crypto" rows="3" maxlength="800" placeholder="BTC: bc1…&#10;ETH: 0x…&#10;USDT (TRC20): T…"></textarea>
+              </div>
+              <div class="field">
+                <label for="setting-ticket">Discord ticket URL</label>
+                <input class="input" id="setting-ticket" type="url" placeholder="https://discord.gg/…">
+                <span class="hint">Shown on the payment page. Falls back to the Discord invite above.</span>
+              </div>
+              <div class="field">
+                <label for="setting-manual-instructions">Checkout instructions</label>
+                <textarea class="input" id="setting-manual-instructions" rows="2" maxlength="600"></textarea>
+              </div>
+              <button class="btn btn-primary btn-small" type="submit" id="manual-submit">Save manual payments</button>
+              <p class="form-note" style="margin-top:.6rem">Buyer sends the exact amount with the order number, then submits a claim or opens a ticket. You confirm in Orders.</p>
+            </form>
+          </div>
+
+          <div class="admin-card">
             <h3>Stripe payments</h3>
             <div class="banner info" id="stripe-banner">Checking Stripe…</div>
             <div class="form-error" id="stripe-error" role="alert"></div>
@@ -459,8 +496,8 @@
     </div>
   </div>
 
-  <script src="/assets/config.js?v=15"></script>
-  <script src="/assets/app.js?v=15"></script>
-  <script src="/assets/admin.js?v=15"></script>
+  <script src="/assets/config.js?v=16"></script>
+  <script src="/assets/app.js?v=16"></script>
+  <script src="/assets/admin.js?v=16"></script>
 </body>
 </html>

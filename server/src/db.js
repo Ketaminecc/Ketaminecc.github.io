@@ -65,6 +65,9 @@ db.exec(`
     refunded_at INTEGER,
     expires_at INTEGER,
     discord_status TEXT,
+    payment_method TEXT,
+    payment_ref TEXT,
+    payment_claimed_at INTEGER,
     meta TEXT
   );
 
@@ -137,6 +140,17 @@ try {
 } catch {
   /* column already exists */
 }
+for (const sql of [
+  'ALTER TABLE orders ADD COLUMN payment_method TEXT',
+  'ALTER TABLE orders ADD COLUMN payment_ref TEXT',
+  'ALTER TABLE orders ADD COLUMN payment_claimed_at INTEGER',
+]) {
+  try {
+    db.exec(sql);
+  } catch {
+    /* column already exists */
+  }
+}
 try {
   db.exec(`
     UPDATE licenses
@@ -169,6 +183,13 @@ const defaults = {
   support_email: config.supportEmail,
   discord_invite: '',
   discord_webhook_url: '',
+  discord_ticket_url: '',
+  manual_payments: '0',
+  manual_cashapp: '',
+  manual_paypal: '',
+  manual_crypto: '',
+  manual_instructions:
+    'Pay the exact amount, include your order number in the note, then submit the transaction ID or open a Discord ticket.',
 };
 for (const [key, value] of Object.entries(defaults)) {
   if (getSetting(key) === null) setSetting(key, value);

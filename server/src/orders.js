@@ -43,14 +43,26 @@ function licenseStatus(license) {
   return 'active';
 }
 
-function createOrder(user, product) {
+function createOrder(user, product, { status = 'pending', paymentMethod = null } = {}) {
   const number = generateOrderNumber();
   const id = newId('ord');
   const createdAt = Date.now();
   db.prepare(
-    `INSERT INTO orders (id, number, user_id, product_id, product_name, amount_cents, currency, status, customer_email, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-  ).run(id, number, user.id, product.id, product.name, product.priceCents, product.currency, user.email, createdAt);
+    `INSERT INTO orders (id, number, user_id, product_id, product_name, amount_cents, currency, status, customer_email, payment_method, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    number,
+    user.id,
+    product.id,
+    product.name,
+    product.priceCents,
+    product.currency,
+    status,
+    user.email,
+    paymentMethod,
+    createdAt
+  );
   return getOrderById(id);
 }
 
@@ -219,6 +231,9 @@ function serializeOrderForUser(order) {
     productName: order.product_name,
     amountCents: order.amount_cents,
     currency: order.currency,
+    paymentMethod: order.payment_method || null,
+    paymentRef: order.payment_ref || null,
+    paymentClaimedAt: order.payment_claimed_at || null,
     createdAt: order.created_at,
     paidAt: order.paid_at,
     expiresAt: license ? license.expires_at : order.expires_at,

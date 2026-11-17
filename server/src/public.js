@@ -25,7 +25,9 @@ const {
   licenseForOrder,
   licenseStatus,
 } = require('./orders');
-const { createCheckoutSession, retrieveCheckoutSession, publicPaymentMode, stripeConfigured } = require('./stripe');
+const { createCheckoutSession, retrieveCheckoutSession, stripeConfigured } = require('./stripe');
+const { manualConfig, publicManualConfig, publicPaymentMode } = require('./payments');
+const { sendPaymentClaim } = require('./discord');
 
 const router = express.Router();
 
@@ -70,6 +72,7 @@ router.get('/site', (_req, res) => {
     discordInvite: getSetting('discord_invite', ''),
     payments: publicPaymentMode(),
     stripeConfigured: stripeConfigured(),
+    manual: publicManualConfig(),
   });
 });
 
@@ -177,8 +180,19 @@ router.post('/checkout', requireUser, rateLimit({ windowMs: 10 * 60_000, max: 15
   }
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  const order = createOrder(user, product);
   const mode = publicPaymentMode();
+
+  if (mode === 'manual') {
+    const manual = manualConfig();
+    const method = String(req.body?.method || '').trim().toLowerCase() || manual.methods[0];
+    if (!manual.methods.includes(method)) {
+      return res.status(400).json({ error: 'Choose a valid payment method.' });
+    }
+    const order = createOrder(user, product, { status: 'awaiting_payment', paymentMethod: method });
+    return res.json({ mode: 'manual', order: serializeOrderForUser(order) });
+  }
+
+  const order = createOrder(user, product);
 
   if (mode === 'disabled') {
     db.prepare("UPDATE orders SET status = 'failed' WHERE id = ?").run(order.id);
@@ -261,6 +275,43 @@ router.post(
     }
 
     return res.json({ order: serializeOrderForUser(order) });
+  }
+);
+
+/* Buyer says they sent a manual payment. The owner still verifies and confirms
+   from the admin console; this only records the reference and pings Discord. */
+router.post(
+  '/orders/:number/claim',
+  requireUser,
+  rateLimit({ windowMs: 60 * 60_000, max: 20, key: 'order-claim' }),
+  async (req, res) => {
+    const order = getOrderByNumber(req.params.number);
+    if (!order || order.user_id !== req.user.id) return res.status(404).json({ error: 'Order not found.' });
+    if (order.status !== 'awaiting_payment') {
+      return res.status(409).json({ error: 'This order is not awaiting payment.' });
+    }
+    const manual = manualConfig();
+    const method = String(req.body?.method || order.payment_method || '').trim().toLowerCase();
+    if (!manual.methods.includes(method)) {
+      return res.status(400).json({ error: 'Choose a valid payment method.' });
+    }
+    const reference = String(req.body?.reference || '').trim().slice(0, 200);
+    const firstClaim = !order.payment_claimed_at;
+    db.prepare('UPDATE orders SET payment_method = ?, payment_ref = ?, payment_claimed_at = ? WHERE id = ?').run(
+      method,
+      reference || null,
+      Date.now(),
+      order.id
+    );
+    const updated = getOrderByNumber(order.number);
+    if (firstClaim) {
+      try {
+        await sendPaymentClaim({ order: updated, method, reference });
+      } catch (err) {
+        console.error('[manual] claim notification failed:', err.message);
+      }
+    }
+    return res.json({ ok: true, order: serializeOrderForUser(updated) });
   }
 );
 

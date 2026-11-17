@@ -155,12 +155,6 @@ async function verifyStripeKey() {
   }
 }
 
-function publicPaymentMode() {
-  if (stripeConfigured()) return 'stripe';
-  if (config.demoMode) return 'demo';
-  return 'disabled';
-}
-
 module.exports = {
   stripe,
   stripeConfigured,
@@ -171,5 +165,4 @@ module.exports = {
   retrieveCheckoutSession,
   refundPaymentIntent,
   verifyStripeKey,
-  publicPaymentMode,
 };

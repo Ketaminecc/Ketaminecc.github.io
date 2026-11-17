@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=15">
+  <link rel="stylesheet" href="/assets/styles.css?v=16">
 </head>
 <body class="page-app app-page">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -44,6 +44,14 @@
         <div class="stat"><span>Expiring in 7d</span><b id="stat-expiring">—</b></div>
       </div>
 
+      <section class="panel" id="pending-panel" hidden style="margin-bottom:1.25rem">
+        <div class="panel-head">
+          <h2>Awaiting payment</h2>
+          <span class="sub">Manual orders</span>
+        </div>
+        <div class="pending-list" id="pending-list"></div>
+      </section>
+
       <section class="panel">
         <div class="panel-head">
           <h2>Licenses</h2>
@@ -56,8 +64,8 @@
     </div>
   </main>
 
-  <script src="/assets/config.js?v=15"></script>
-  <script src="/assets/app.js?v=15"></script>
-  <script src="/assets/dashboard.js?v=15"></script>
+  <script src="/assets/config.js?v=16"></script>
+  <script src="/assets/app.js?v=16"></script>
+  <script src="/assets/dashboard.js?v=16"></script>
 </body>
 </html>

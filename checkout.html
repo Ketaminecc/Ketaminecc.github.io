@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=15">
+  <link rel="stylesheet" href="/assets/styles.css?v=16">
 </head>
 <body class="page-app app-page">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -45,6 +45,9 @@
       <div class="form-error" id="checkout-error" role="alert"></div>
       <div class="banner info" id="cancel-banner" hidden>Checkout cancelled. Nothing was charged.</div>
       <div class="banner warn" id="demo-banner" hidden>Demo mode. No card is charged.</div>
+      <div class="banner info" id="manual-banner" hidden>
+        Manual payment. Your key is issued after the owner confirms the payment.
+      </div>
 
       <div class="checkout-grid">
         <div>
@@ -69,7 +72,9 @@
               <span class="sub" id="payment-mode">Stripe</span>
             </div>
 
-            <div class="summary-line"><span>Card data</span><span style="color:var(--text-soft)">Handled by Stripe</span></div>
+            <div class="pay-methods" id="manual-methods" hidden></div>
+
+            <div class="summary-line" id="card-data-line"><span>Card data</span><span style="color:var(--text-soft)">Handled by Stripe</span></div>
             <div class="summary-line"><span>Delivery</span><span style="color:var(--text-soft)">Instant</span></div>
             <div class="summary-line" style="margin-bottom:1.2rem"><span>Refunds</span><a class="link" href="/#questions" style="font-size:.78rem">Policy</a></div>
 
@@ -77,7 +82,7 @@
               <span id="pay-label">Continue to Stripe</span>
               <span class="arrow" aria-hidden="true">→</span>
             </button>
-            <p class="form-note" style="text-align:center;margin-top:.8rem">Encrypted in transit · signed payment webhook</p>
+            <p class="form-note" id="payment-note" style="text-align:center;margin-top:.8rem">Encrypted in transit · signed payment webhook</p>
           </section>
         </div>
 
@@ -107,8 +112,8 @@
     </div>
   </main>
 
-  <script src="/assets/config.js?v=15"></script>
-  <script src="/assets/app.js?v=15"></script>
-  <script src="/assets/checkout.js?v=15"></script>
+  <script src="/assets/config.js?v=16"></script>
+  <script src="/assets/app.js?v=16"></script>
+  <script src="/assets/checkout.js?v=16"></script>
 </body>
 </html>

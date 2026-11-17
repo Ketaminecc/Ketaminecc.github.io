@@ -2,7 +2,37 @@
 
 (function () {
   const list = document.getElementById('license-list');
+  const pendingPanel = document.getElementById('pending-panel');
+  const pendingList = document.getElementById('pending-list');
   let licenses = [];
+
+  const methodLabels = { cashapp: 'Cash App', paypal: 'PayPal', crypto: 'Crypto' };
+
+  function renderPending(orders) {
+    const waiting = orders.filter((order) => order.status === 'awaiting_payment');
+    pendingPanel.hidden = !waiting.length;
+    if (!waiting.length) return;
+    pendingList.innerHTML = waiting
+      .map(
+        (order) => `
+        <article class="license-item pending-item">
+          <div class="license-top">
+            <h4>${window.KET.escape(order.productName || 'License')}</h4>
+            <span class="pill warn">${order.paymentClaimedAt ? 'Claim submitted' : 'Awaiting payment'}</span>
+          </div>
+          <div class="license-meta">
+            <span>Order <b>${window.KET.escape(order.number)}</b></span>
+            <span>Amount <b>${window.KET.money(order.amountCents, order.currency)}</b></span>
+            <span>Method <b>${window.KET.escape(methodLabels[order.paymentMethod] || 'Manual')}</b></span>
+          </div>
+          <div class="pending-actions">
+            <a class="btn btn-primary btn-small" href="/checkout-success.html?order=${encodeURIComponent(order.number)}">Complete payment</a>
+            <span class="form-note">${order.paymentClaimedAt ? 'The owner is verifying your payment.' : 'Your key is issued after confirmation.'}</span>
+          </div>
+        </article>`
+      )
+      .join('');
+  }
 
   const statusClass = {
     active: 'ok',
@@ -86,9 +116,13 @@
     document.querySelectorAll('[data-user-name]').forEach((el) => (el.textContent = user.displayName || user.email));
 
     try {
-      const result = await window.KET.api('/api/licenses');
+      const [result, ordersResult] = await Promise.all([
+        window.KET.api('/api/licenses'),
+        window.KET.api('/api/orders').catch(() => ({ orders: [] })),
+      ]);
       licenses = result.licenses;
       render();
+      renderPending(ordersResult.orders || []);
     } catch (err) {
       list.innerHTML = '<div class="empty-state"><b>Could not load keys.</b>Refresh the page.</div>';
       window.KET.toast(err.message || 'Failed to load keys.', 'error');

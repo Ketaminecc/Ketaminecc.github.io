@@ -39,8 +39,8 @@ npm start
 - Admin: http://localhost:3000/admin
 - Admin secret: `ADMIN_SECRET` in `server/.env`
 
-`DEMO_MODE=true` is set for local development. Checkout issues a real key without charging
-a card. **Set `DEMO_MODE=false` in production.**
+`DEMO_MODE=true` issues a real key without charging a card and is for local development only.
+**Set `DEMO_MODE=false` in production.**
 
 The database and all generated keys live in `server/data/store.db`.
 
@@ -50,13 +50,18 @@ The database and all generated keys live in `server/data/store.db`.
 
 1. Visitor clicks **Purchase** → `checkout.html`.
 2. Not signed in yet → forced to `login.html?next=/checkout?product=…`.
-3. Signed in → order is created as `pending`, Stripe Checkout opens.
+3. Signed in → order is created as `pending`, Stripe Checkout opens. With manual payments
+   enabled the order is created as `awaiting_payment` and the buyer gets payment instructions
+   instead (see §4).
 4. Stripe calls `POST /api/webhook/stripe` (signature verified).
 5. Server issues `KET-XXXXX-XXXXX-XXXXX-XXXXX`, computes the expiration date, marks the
    order paid.
 6. The success page polls the order and displays the key + exact expiry.
 7. Keys are listed on the independent `/dashboard.html` page and linked to the account email.
    `/account.html` holds orders and password settings only.
+
+Manual orders follow the same delivery path but become `paid` only after you press
+**Confirm** in **Admin → Orders**.
 
 Orders cannot be fulfilled without the authenticated account that created them.
 
@@ -99,7 +104,46 @@ Test cards: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ---
 
-## 4. Deploy on your own domain (no Cloudflare)
+## 4. Manual payments (Cash App, PayPal, crypto)
+
+Manual checkout works without Stripe business activation, an SSN, or card payments. Stripe
+stays in the codebase and takes over again whenever manual checkout is switched off.
+
+1. Open **Admin → Settings → Manual payments**.
+2. Fill in any combination of:
+   - **Cash App cashtag** — e.g. `$yourname`; the pay page builds `https://cash.app/$yourname/5.99`.
+   - **PayPal.me link** — e.g. `https://paypal.me/yourname`; the amount is appended.
+   - **Crypto addresses / instructions** — free text shown to the buyer (BTC, ETH, USDT, …).
+   - **Discord ticket URL** — optional; falls back to the Discord invite from the main settings.
+   - **Checkout instructions** — optional extra text shown on the payment page.
+3. Tick **Enable manual checkout** and save. The server refuses to enable it when no method
+   is configured.
+
+While enabled, manual checkout **takes priority over Stripe**. `/api/site` reports
+`"payments": "manual"`, and the Stripe key is ignored at checkout.
+
+**Buyer flow**
+
+1. Signed-in buyer picks a method on `checkout.html`.
+2. `POST /api/checkout` creates an `awaiting_payment` order and returns the order number.
+3. `checkout-success.html?order=…` shows the exact amount, order number, a payment link
+   (Cash App / PayPal) or copyable crypto details, and the ticket link.
+4. The buyer pays externally, then either submits a transaction ID / sender name on the page
+   (`POST /api/orders/:number/claim`) or opens a Discord ticket with the order number.
+5. In **Admin → Orders**, filter **Awaiting payment**, verify the payment, then press
+   **Confirm**. The license is issued from stock immediately and appears in the buyer's
+   dashboard; the success page picks it up by polling.
+6. **Cancel** expires an unpaid order. **Mark refunded** revokes the license; send the money
+   back in Cash App / PayPal / crypto yourself — there is no Stripe charge to reverse.
+
+When a purchase-log webhook is configured, payment claims also post to Discord, but nothing
+is auto-approved: only an admin session can confirm payment or issue the key. If manual
+checkout is disabled and no Stripe key is present, checkout shows an offline message instead
+of redirecting to a failing Stripe page.
+
+---
+
+## 5. Deploy on your own domain (no Cloudflare)
 
 Two supported layouts:
 
@@ -177,7 +221,7 @@ license rows cannot be decrypted.
 
 ---
 
-## 5. Encrypted Discord purchase log
+## 6. Encrypted Discord purchase log
 
 Set the webhook either in **Admin → Settings → Purchase log webhook** or via
 `DISCORD_PURCHASE_WEBHOOK_URL` in `server/.env`. Use **Send test** to verify.
@@ -216,12 +260,13 @@ The admin console can also reveal a code under **Settings → Verification codes
 
 ---
 
-## 6. Admin console
+## 7. Admin console
 
 `/admin` — secret-key login, 8-hour session, all actions written to the audit log.
 
 - **Overview** — 30-day revenue/orders, active licenses, expiries, pending orders, refunds.
-- **Orders** — search, decrypt details, refund through Stripe, revoke keys.
+- **Orders** — search, decrypt details, confirm or cancel manual payments, refund through
+  Stripe (or mark manual orders refunded), revoke keys.
 - **Licenses** — restock 1–500 unassigned keys at once for any product and duration
   (`lifetime` or days). Checkout consumes stock automatically and stamps the buyer's account
   email on the key; if stock is empty, a key is generated at purchase. Search, revoke,
@@ -232,16 +277,16 @@ The admin console can also reveal a code under **Settings → Verification codes
 - **Blacklist** — email, license key, IP, or Discord ID; blocked at checkout/registration and
   in the license validation endpoint.
 - **Audit log** — admin logins, refunds, key generation, revocations, setting changes.
-- **Settings** — brand, support email, Discord invite, purchase webhook, test webhook, Stripe
-  secret key + webhook signing secret (encrypted at rest), Stripe connection test, code reveal,
-  bot status.
+- **Settings** — brand, support email, Discord invite, purchase webhook, test webhook, manual
+  payments (Cash App / PayPal / crypto / ticket URL / instructions), Stripe secret key + webhook
+  signing secret (encrypted at rest), Stripe connection test, code reveal, bot status.
 
 Refunds revoke the order's license automatically. Blacklisting a user revokes their active
 licenses. Every license check reflects the change immediately.
 
 ---
 
-## 7. License validation API (for your software)
+## 8. License validation API (for your software)
 
 ```http
 GET /api/license/validate?key=KET-XXXXX-XXXXX-XXXXX-XXXXX
@@ -270,6 +315,8 @@ GET  /api/me
 GET  /api/products
 POST /api/checkout
 GET  /api/orders, /api/orders/:number
+POST /api/orders/:number/sync       reconcile a pending Stripe session
+POST /api/orders/:number/claim      manual payment claim (buyer)
 GET  /api/licenses                  current account keys
 POST /api/webhook/stripe
 POST /api/internal/reveal          (bot only, X-Bot-Secret)
@@ -278,7 +325,7 @@ POST /api/admin/*                  (admin session)
 
 ---
 
-## 8. Security notes
+## 9. Security notes
 
 - Passwords: scrypt with per-user salts.
 - Sessions: random 256-bit tokens, only SHA-256 hashes stored. The browser keeps the token
@@ -286,7 +333,8 @@ POST /api/admin/*                  (admin session)
 - License keys and Discord payloads: AES-256-GCM with a server-side key.
 - Stripe: raw-body signature verification before fulfillment.
 - CSP, frame denial, nosniff, referrer and permissions policies.
-- In-memory rate limits on auth, checkout, admin login, validation, and bot reveal.
+- In-memory rate limits on auth, checkout, manual payment claims, admin login, validation, and
+  bot reveal.
 - Origin checks on state-changing requests; explicit static-file allowlist so `/server`
   (including `.env`) is never served.
 - Demo mode must be off in production or keys can be issued without payment.
@@ -295,7 +343,9 @@ POST /api/admin/*                  (admin session)
 
 - [ ] `DEMO_MODE=false`
 - [ ] `NODE_ENV=production`, HTTPS base URL
-- [ ] Stripe live keys (env or Admin → Settings) + optional webhook signing secret
+- [ ] Stripe live keys (env or Admin → Settings) + optional webhook signing secret, **or**
+      manual payments configured and enabled
+- [ ] Payment claims reach you (Discord webhook or ticket URL) if manual checkout is on
 - [ ] Custom-domain TLS issued and Enforce HTTPS on
 - [ ] Fresh secrets if this folder was ever shared (`SESSION_SECRET`, `ENC_KEY`,
       `BOT_SHARED_SECRET`); rotating `ENC_KEY` makes existing rows unreadable
@@ -305,14 +355,14 @@ POST /api/admin/*                  (admin session)
 
 ---
 
-## 9. Holiday decal
+## 10. Holiday decal
 
 `assets/santa-hat.png` is the supplied decal, used on the storefront, login, and admin screens.
 It is a transparent PNG rendered at its natural aspect ratio; swap the file (same name) to change it.
 
 ---
 
-## 10. Snowfall
+## 11. Snowfall
 
 `assets/app.js` draws six-armed snowflakes on a canvas with depth, sway, rotation, and
 DPI scaling. It pauses when the tab is hidden, hides on reduced-motion, and is disabled on

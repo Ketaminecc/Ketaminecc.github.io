@@ -2192,6 +2192,162 @@ h3 {
   padding: 0.3rem 0;
 }
 
+/* Manual payments */
+
+.pay-methods {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.2rem 0 1rem;
+}
+
+.pay-method {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.pay-method:has(input:checked) {
+  border-color: rgba(229, 72, 77, 0.55);
+  background: rgba(229, 72, 77, 0.06);
+}
+
+.pay-method input {
+  margin-top: 0.15rem;
+  accent-color: var(--red);
+}
+
+.pay-method-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pay-method-copy b {
+  font-size: 0.84rem;
+}
+
+.pay-method-copy small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.manual-panel {
+  margin: 1.6rem auto;
+  max-width: 560px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1.2rem;
+}
+
+.manual-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.manual-order {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.manual-order b {
+  color: var(--text);
+}
+
+.manual-order .icon-btn {
+  vertical-align: middle;
+  margin-left: 0.1rem;
+}
+
+.manual-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-block: 1px solid var(--line);
+  margin: 1rem 0;
+  padding: 0.75rem 0;
+}
+
+.manual-amount span {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.manual-amount b {
+  font-size: 1.5rem;
+}
+
+.manual-instructions {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  margin-bottom: 0.8rem;
+}
+
+.manual-links {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.manual-crypto {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 0.7rem;
+}
+
+.claim {
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.claim h3 {
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.claim .input {
+  margin-bottom: 0.55rem;
+}
+
+.pending-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.pending-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.7rem;
+}
+
+.pending-actions .form-note {
+  margin: 0;
+}
+
 .summary-total {
   display: flex;
   justify-content: space-between;

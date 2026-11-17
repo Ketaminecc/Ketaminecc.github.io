@@ -7,6 +7,7 @@
   const payLabel = document.getElementById('pay-label');
   let product = null;
   let payments = 'stripe';
+  let manual = null;
 
   function showError(message) {
     errorBox.textContent = message;
@@ -19,8 +20,38 @@
     return `${days} day${days === 1 ? '' : 's'}`;
   }
 
+  const methodMeta = {
+    cashapp: ['Cash App', 'Send to'],
+    paypal: ['PayPal', 'Pay with your PayPal account'],
+    crypto: ['Crypto', 'BTC / ETH / USDT'],
+  };
+
+  function renderManualMethods() {
+    const box = document.getElementById('manual-methods');
+    const methods = manual?.methods || [];
+    if (!methods.length) {
+      box.hidden = true;
+      showError('No manual payment methods are configured yet. Contact support.');
+      payBtn.disabled = true;
+      return;
+    }
+    box.innerHTML = methods
+      .map((method, index) => {
+        const [label, hint] = methodMeta[method] || [method, ''];
+        const detail =
+          method === 'cashapp' && manual.cashapp ? `${hint} ${manual.cashapp}` : hint;
+        return `<label class="pay-method">
+            <input type="radio" name="pay-method" value="${method}" ${index === 0 ? 'checked' : ''}>
+            <span class="pay-method-copy"><b>${label}</b><small>${detail}</small></span>
+          </label>`;
+      })
+      .join('');
+    box.hidden = false;
+  }
+
   function render(products, site) {
     payments = site.payments || 'disabled';
+    manual = site.manual || null;
     const slug = params.get('product');
     product = products.find((p) => p.slug === slug) || products[0];
 
@@ -54,6 +85,13 @@
       payBtn.disabled = true;
       payLabel.textContent = 'Payments offline';
       document.getElementById('payment-mode').textContent = 'Offline';
+    } else if (payments === 'manual') {
+      document.getElementById('manual-banner').hidden = false;
+      document.getElementById('card-data-line').hidden = true;
+      document.getElementById('payment-mode').textContent = 'Manual';
+      document.getElementById('payment-note').textContent = 'Pay externally · key issued after confirmation';
+      payLabel.textContent = 'Create order & pay';
+      renderManualMethods();
     } else {
       document.getElementById('payment-mode').textContent = 'Stripe';
     }
@@ -82,16 +120,27 @@
   payBtn.addEventListener('click', async () => {
     if (!product) return;
     errorBox.classList.remove('show');
+    const method =
+      payments === 'manual' ? document.querySelector('input[name="pay-method"]:checked')?.value : null;
+    if (payments === 'manual' && !method) {
+      showError('Choose a payment method first.');
+      return;
+    }
     payBtn.disabled = true;
     payBtn.classList.add('is-loading');
     const original = payLabel.textContent;
-    payLabel.textContent = payments === 'demo' ? 'Issuing license…' : 'Opening Stripe…';
+    payLabel.textContent =
+      payments === 'demo' ? 'Issuing license…' : payments === 'manual' ? 'Creating order…' : 'Opening Stripe…';
 
     try {
       const result = await window.KET.api('/api/checkout', {
         method: 'POST',
-        body: { productId: product.id },
+        body: { productId: product.id, method },
       });
+      if (result.mode === 'manual' && result.order?.number) {
+        window.location.assign(`/checkout-success.html?order=${encodeURIComponent(result.order.number)}`);
+        return;
+      }
       if (!result.url) throw new Error('Checkout did not return a destination.');
       window.location.assign(result.url);
     } catch (err) {

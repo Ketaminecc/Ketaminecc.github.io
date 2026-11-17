@@ -38,8 +38,17 @@
     return `<span class="pill ${cls}">${esc(status)}</span>`;
   }
 
+  const paymentLabels = { cashapp: 'Cash App', paypal: 'PayPal', crypto: 'Crypto', stripe: 'Stripe', demo: 'Demo' };
+
   const orderPill = (status) =>
-    pill(status, { paid: 'ok', pending: 'warn', refunded: 'neutral', expired: 'neutral', failed: 'bad' });
+    pill(status, {
+      paid: 'ok',
+      pending: 'warn',
+      awaiting_payment: 'warn',
+      refunded: 'neutral',
+      expired: 'neutral',
+      failed: 'bad',
+    });
   const licensePill = (status) =>
     pill(status, { active: 'ok', stock: 'warn', revoked: 'bad', blacklisted: 'bad', expired: 'neutral', missing: 'neutral' });
 
@@ -176,10 +185,13 @@
       return;
     }
     body.innerHTML = data.orders
-      .map(
-        (order) => `
+      .map((order) => {
+        const manual = Boolean(order.paymentMethod && order.paymentMethod !== 'stripe' && order.paymentMethod !== 'demo');
+        return `
         <tr>
-          <td class="num">${esc(order.number)}</td>
+          <td class="num">${esc(order.number)}${
+            manual ? `<div class="dim" style="font-size:.65rem">${esc(paymentLabels[order.paymentMethod] || order.paymentMethod)}</div>` : ''
+          }</td>
           <td>${esc(order.email)}</td>
           <td>${esc(order.product)}</td>
           <td class="num">${money(order.amountCents, order.currency)}</td>
@@ -189,12 +201,28 @@
           <td>
             <div class="actions">
               <button class="btn btn-subtle btn-small" type="button" data-order-view="${esc(order.number)}">View</button>
-              ${order.status === 'paid' ? `<button class="btn btn-danger btn-small" type="button" data-order-refund="${esc(order.number)}">Refund</button>` : ''}
-              ${order.status === 'paid' ? `<button class="btn btn-subtle btn-small" type="button" data-order-revoke="${esc(order.number)}">Revoke</button>` : ''}
+              ${
+                order.status === 'awaiting_payment'
+                  ? `<button class="btn btn-primary btn-small" type="button" data-order-confirm="${esc(order.number)}">Confirm</button>
+                     <button class="btn btn-ghost btn-small" type="button" data-order-cancel="${esc(order.number)}">Cancel</button>`
+                  : ''
+              }
+              ${
+                order.status === 'paid'
+                  ? `<button class="btn btn-danger btn-small" type="button" data-order-refund="${esc(order.number)}">${
+                      manual ? 'Mark refunded' : 'Refund'
+                    }</button>`
+                  : ''
+              }
+              ${
+                order.status === 'paid'
+                  ? `<button class="btn btn-subtle btn-small" type="button" data-order-revoke="${esc(order.number)}">Revoke</button>`
+                  : ''
+              }
             </div>
           </td>
-        </tr>`
-      )
+        </tr>`;
+      })
       .join('');
   }
 
@@ -206,6 +234,7 @@
     try {
       const data = await adminApi(`/api/admin/orders/${encodeURIComponent(number)}`);
       const o = data.order;
+      const manual = Boolean(o.paymentMethod && o.paymentMethod !== 'stripe' && o.paymentMethod !== 'demo');
       const licenseRows = data.licenses.length
         ? data.licenses
             .map(
@@ -234,6 +263,9 @@
         <div class="summary-line"><span>Customer</span><span>${esc(o.customerName || '—')} · ${esc(o.email)}</span></div>
         <div class="summary-line"><span>Product</span><span>${esc(o.product)}</span></div>
         <div class="summary-line"><span>Amount</span><span>${money(o.amountCents, o.currency)}</span></div>
+        <div class="summary-line"><span>Payment method</span><span>${esc(paymentLabels[o.paymentMethod] || o.paymentMethod || '—')}</span></div>
+        <div class="summary-line"><span>Claim reference</span><span>${esc(o.paymentRef || '—')}</span></div>
+        <div class="summary-line"><span>Claimed</span><span>${o.paymentClaimedAt ? date(o.paymentClaimedAt, true) : '—'}</span></div>
         <div class="summary-line"><span>Created</span><span>${date(o.createdAt, true)}</span></div>
         <div class="summary-line"><span>Paid</span><span>${o.paidAt ? date(o.paidAt, true) : '—'}</span></div>
         <div class="summary-line"><span>Expires</span><span>${o.expiresAt ? date(o.expiresAt) : 'Never'}</span></div>
@@ -245,8 +277,20 @@
         <h3 style="font-size:.85rem;margin-bottom:.4rem">Licenses</h3>
         ${licenseRows}
         <div class="actions" style="margin-top:1.1rem;justify-content:flex-end">
+          ${
+            o.status === 'awaiting_payment'
+              ? `<button class="btn btn-primary btn-small" type="button" data-order-confirm="${esc(o.number)}">Confirm payment</button>
+                 <button class="btn btn-ghost btn-small" type="button" data-order-cancel="${esc(o.number)}">Cancel</button>`
+              : ''
+          }
           ${o.status === 'paid' ? `<button class="btn btn-subtle btn-small" type="button" data-order-revoke="${esc(o.number)}">Revoke keys</button>` : ''}
-          ${o.status === 'paid' ? `<button class="btn btn-danger btn-small" type="button" data-order-refund="${esc(o.number)}">Refund order</button>` : ''}
+          ${
+            o.status === 'paid'
+              ? `<button class="btn btn-danger btn-small" type="button" data-order-refund="${esc(o.number)}">${
+                  manual ? 'Mark refunded' : 'Refund order'
+                }</button>`
+              : ''
+          }
           <button class="btn btn-ghost btn-small" type="button" data-close-modal>Close</button>
         </div>`;
     } catch (err) {
@@ -255,17 +299,54 @@
   }
 
   async function refundOrder(number) {
-    if (!window.confirm(`Refund ${number}? The license is revoked and this cannot be undone.`)) return;
+    const order = state.orders.find((item) => item.number === number);
+    const manual = Boolean(order && order.paymentMethod && order.paymentMethod !== 'stripe' && order.paymentMethod !== 'demo');
+    if (
+      !window.confirm(
+        `${manual ? 'Mark' : 'Refund'} ${number}? The license is revoked and this cannot be undone.${
+          manual ? ' Refund the buyer in Cash App / PayPal / crypto yourself.' : ''
+        }`
+      )
+    ) {
+      return;
+    }
     try {
       const result = await adminApi(`/api/admin/orders/${encodeURIComponent(number)}/refund`, {
         method: 'POST',
         body: {},
       });
-      window.KET.toast(`Refunded ${number}. ${result.revoked} license(s) revoked.`, 'ok');
+      window.KET.toast(`${manual ? 'Marked' : 'Refunded'} ${number}. ${result.revoked} license(s) revoked.`, 'ok');
       closeModals();
       await loadView(state.view);
     } catch (err) {
       if (err.status !== 401) window.KET.toast(err.message || 'Refund failed.', 'error');
+    }
+  }
+
+  async function confirmOrder(number) {
+    if (!window.confirm(`Confirm payment for ${number}? This issues the license immediately.`)) return;
+    try {
+      const result = await adminApi(`/api/admin/orders/${encodeURIComponent(number)}/confirm`, {
+        method: 'POST',
+        body: {},
+      });
+      window.KET.toast(`Payment confirmed. ${result.keyPreview ? `Key ${result.keyPreview} issued.` : 'License issued.'}`, 'ok');
+      closeModals();
+      await loadView(state.view);
+    } catch (err) {
+      if (err.status !== 401) window.KET.toast(err.message || 'Could not confirm payment.', 'error');
+    }
+  }
+
+  async function cancelOrder(number) {
+    if (!window.confirm(`Cancel ${number}? The buyer can create a new order.`)) return;
+    try {
+      await adminApi(`/api/admin/orders/${encodeURIComponent(number)}/cancel`, { method: 'POST', body: {} });
+      window.KET.toast(`Order ${number} cancelled.`, 'ok');
+      closeModals();
+      await loadView(state.view);
+    } catch (err) {
+      if (err.status !== 401) window.KET.toast(err.message || 'Could not cancel the order.', 'error');
     }
   }
 
@@ -621,6 +702,12 @@
     $('#setting-brand').value = data.brand || '';
     $('#setting-support').value = data.supportEmail || '';
     $('#setting-discord').value = data.discordInvite || '';
+    $('#setting-ticket').value = data.discordTicketUrl || '';
+    $('#setting-manual-enabled').checked = Boolean(data.manualPayments);
+    $('#setting-cashapp').value = data.manualCashapp || '';
+    $('#setting-paypal').value = data.manualPaypal || '';
+    $('#setting-crypto').value = data.manualCrypto || '';
+    $('#setting-manual-instructions').value = data.manualInstructions || '';
     $('#setting-webhook').value = '';
     const webhookState = $('#webhook-state');
     webhookState.className = data.webhookConfigured ? 'banner info' : 'banner warn';
@@ -628,8 +715,16 @@
       ? `Connected · ${data.webhookMasked}`
       : 'No webhook configured. Purchase records will not be delivered to Discord.';
     $('#stripe-state').textContent = data.stripeConfigured ? 'Connected' : 'Not configured';
-    $('#payment-state').textContent = data.stripeConfigured ? 'Live Stripe' : data.demoMode ? 'Demo mode' : 'Disabled';
+    const modeLabels = { manual: 'Manual payments', stripe: 'Live Stripe', demo: 'Demo mode', disabled: 'Disabled' };
+    $('#payment-state').textContent = modeLabels[data.paymentMode] || '—';
     $('#bot-state').textContent = data.botSecretConfigured ? 'Secret configured' : 'Missing secret';
+
+    const manualBanner = $('#manual-banner');
+    const manualReady = Boolean(data.manualCashapp || data.manualPaypal || data.manualCrypto);
+    manualBanner.className = data.manualPayments && manualReady ? 'banner info' : 'banner warn';
+    manualBanner.textContent = data.manualPayments && manualReady
+      ? `Manual checkout is live · ${[data.manualCashapp, data.manualPaypal, data.manualCrypto].filter(Boolean).length} method(s) configured`
+      : 'Manual checkout is off. Add Cash App, PayPal, or crypto details and enable it.';
 
     const stripeBanner = $('#stripe-banner');
     stripeBanner.className = data.stripeConfigured ? 'banner info' : 'banner warn';
@@ -660,6 +755,32 @@
       await loadSettings();
     } catch (err) {
       if (err.status !== 401) showError('settings-error', err.message || 'Save failed.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function saveManual(event) {
+    event.preventDefault();
+    clearError('manual-error');
+    const btn = $('#manual-submit');
+    btn.disabled = true;
+    try {
+      await adminApi('/api/admin/settings', {
+        method: 'PUT',
+        body: {
+          manualPayments: $('#setting-manual-enabled').checked,
+          manualCashapp: $('#setting-cashapp').value.trim(),
+          manualPaypal: $('#setting-paypal').value.trim(),
+          manualCrypto: $('#setting-crypto').value.trim(),
+          manualInstructions: $('#setting-manual-instructions').value.trim(),
+          discordTicketUrl: $('#setting-ticket').value.trim(),
+        },
+      });
+      window.KET.toast('Manual payment settings saved.', 'ok');
+      await loadSettings();
+    } catch (err) {
+      if (err.status !== 401) showError('manual-error', err.message || 'Could not save manual payments.');
     } finally {
       btn.disabled = false;
     }
@@ -847,6 +968,7 @@
     $('#new-product').addEventListener('click', () => openProductModal(null));
     $('#blacklist-form').addEventListener('submit', addBlacklist);
     $('#settings-form').addEventListener('submit', saveSettings);
+    $('#manual-form').addEventListener('submit', saveManual);
     $('#webhook-form').addEventListener('submit', saveWebhook);
     $('#test-webhook').addEventListener('click', testWebhook);
     $('#remove-webhook').addEventListener('click', removeWebhook);
@@ -881,12 +1003,14 @@
 
     document.addEventListener('click', (event) => {
       const target = event.target.closest(
-        '[data-order-view],[data-order-refund],[data-order-revoke],[data-license-revoke],[data-license-blacklist],[data-product-edit],[data-user-blacklist],[data-user-unblacklist],[data-blacklist-remove]'
+        '[data-order-view],[data-order-refund],[data-order-confirm],[data-order-cancel],[data-order-revoke],[data-license-revoke],[data-license-blacklist],[data-product-edit],[data-user-blacklist],[data-user-unblacklist],[data-blacklist-remove]'
       );
       if (!target) return;
       const ds = target.dataset;
       if (ds.orderView) openOrder(ds.orderView);
       else if (ds.orderRefund) refundOrder(ds.orderRefund);
+      else if (ds.orderConfirm) confirmOrder(ds.orderConfirm);
+      else if (ds.orderCancel) cancelOrder(ds.orderCancel);
       else if (ds.orderRevoke) revokeOrder(ds.orderRevoke);
       else if (ds.licenseRevoke) revokeLicense(ds.licenseRevoke);
       else if (ds.licenseBlacklist) blacklistLicense(ds.licenseBlacklist);

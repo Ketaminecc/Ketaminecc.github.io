@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=15">
+  <link rel="stylesheet" href="/assets/styles.css?v=16">
 </head>
 <body class="page-app app-page">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -34,11 +34,36 @@
       <div class="success-wrap">
         <div class="success-icon" id="success-icon">✓</div>
         <h1 id="success-title">Confirming…</h1>
-        <p id="success-sub">Waiting for Stripe.</p>
+        <p id="success-sub">Checking order status.</p>
 
         <div class="pending-box" id="pending-box">
           <span class="spinner"></span>
           <span>Confirming payment…</span>
+        </div>
+
+        <div class="manual-panel" id="manual-box" hidden>
+          <div class="manual-top">
+            <span class="pill warn">Awaiting payment</span>
+            <span class="manual-order">Order <b id="manual-order">—</b>
+              <button class="icon-btn" type="button" id="copy-order" title="Copy order number" aria-label="Copy order number">⧉</button>
+            </span>
+          </div>
+          <div class="manual-amount"><span>Amount due</span><b id="manual-amount">—</b></div>
+          <p class="manual-instructions" id="manual-instructions"></p>
+          <div class="manual-links" id="manual-links"></div>
+          <pre class="manual-crypto" id="manual-crypto" hidden></pre>
+          <a class="btn btn-ghost btn-block" id="ticket-link" target="_blank" rel="noopener" hidden>Open a Discord ticket</a>
+
+          <div class="claim">
+            <h3>Already paid?</h3>
+            <p class="form-note">Submit the transaction ID or sender name, or open a ticket with your order number. The owner confirms manually.</p>
+            <div class="form-error" id="claim-error" role="alert"></div>
+            <form id="claim-form">
+              <input class="input" id="claim-reference" maxlength="200" placeholder="Transaction ID / sender name (optional)">
+              <button class="btn btn-subtle btn-block" type="submit" id="claim-submit">I've paid</button>
+            </form>
+            <div class="banner info" id="claim-status" hidden></div>
+          </div>
         </div>
 
         <div id="delivery" hidden>
@@ -72,8 +97,8 @@
     </div>
   </main>
 
-  <script src="/assets/config.js?v=15"></script>
-  <script src="/assets/app.js?v=15"></script>
-  <script src="/assets/success.js?v=15"></script>
+  <script src="/assets/config.js?v=16"></script>
+  <script src="/assets/app.js?v=16"></script>
+  <script src="/assets/success.js?v=16"></script>
 </body>
 </html>

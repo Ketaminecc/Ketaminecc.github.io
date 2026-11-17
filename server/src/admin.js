@@ -23,16 +23,11 @@ const {
   revokeLicensesForOrder,
   issueStockKey,
   licenseStatus,
+  fulfillOrder,
 } = require('./orders');
-const {
-  refundPaymentIntent,
-  stripeConfigured,
-  stripeSource,
-  webhookSecret,
-  resetStripeClient,
-  verifyStripeKey,
-} = require('./stripe');
+const { refundPaymentIntent, stripeConfigured, stripeSource, webhookSecret, resetStripeClient, verifyStripeKey } = require('./stripe');
 const { sendTestLog, getWebhookUrl, isValidWebhook } = require('./discord');
+const { publicPaymentMode } = require('./payments');
 
 const router = express.Router();
 
@@ -111,6 +106,9 @@ function orderSummary(row) {
     licenseStatus: license ? licenseStatus(license) : null,
     licensePreview: license?.key_preview ?? null,
     discordStatus: row.discord_status,
+    paymentMethod: row.payment_method || null,
+    paymentRef: row.payment_ref || null,
+    paymentClaimedAt: row.payment_claimed_at || null,
   };
 }
 
@@ -173,6 +171,43 @@ router.post('/orders/:number/refund', async (req, res) => {
   const revoked = revokeLicensesForOrder(order.id, 'refund');
   audit('admin', 'order.refund', order.number, { revoked, stripeRefund: stripeRefund?.id || null });
   return res.json({ ok: true, revoked, refundId: stripeRefund?.id || null });
+});
+
+router.post('/orders/:number/confirm', async (req, res) => {
+  const order = getOrderByNumber(req.params.number);
+  if (!order) return res.status(404).json({ error: 'Order not found.' });
+  if (order.status === 'paid') return res.status(409).json({ error: 'Order is already paid.' });
+  if (order.status !== 'awaiting_payment') {
+    return res.status(409).json({ error: 'Only manual orders awaiting payment can be confirmed.' });
+  }
+  try {
+    const result = await fulfillOrder(order, { source: 'manual' });
+    audit('admin', 'order.confirm_payment', order.number, {
+      method: order.payment_method,
+      reference: order.payment_ref || null,
+      licenseId: result.license?.id || null,
+    });
+    return res.json({
+      ok: true,
+      order: orderSummary(result.order),
+      keyPreview: result.license?.key_preview || null,
+      discord: result.discord,
+    });
+  } catch (err) {
+    console.error('[manual] confirm failed:', err);
+    return res.status(500).json({ error: 'Could not confirm the payment.' });
+  }
+});
+
+router.post('/orders/:number/cancel', (req, res) => {
+  const order = getOrderByNumber(req.params.number);
+  if (!order) return res.status(404).json({ error: 'Order not found.' });
+  if (!['awaiting_payment', 'pending'].includes(order.status)) {
+    return res.status(409).json({ error: 'This order can no longer be cancelled.' });
+  }
+  db.prepare("UPDATE orders SET status = 'failed' WHERE id = ?").run(order.id);
+  audit('admin', 'order.cancel', order.number, { previousStatus: order.status });
+  res.json({ ok: true });
 });
 
 router.post('/orders/:number/revoke', (req, res) => {
@@ -524,20 +559,40 @@ router.get('/settings', async (_req, res) => {
     brand: getSetting('brand', config.brand),
     supportEmail: getSetting('support_email', config.supportEmail),
     discordInvite: getSetting('discord_invite', ''),
+    discordTicketUrl: getSetting('discord_ticket_url', ''),
     webhookConfigured: Boolean(webhook),
     webhookMasked: webhook ? `${webhook.slice(0, 42)}…${webhook.slice(-6)}` : null,
     stripeConfigured: stripeConfigured(),
     stripeSource: stripeSource(),
     stripeWebhookConfigured: Boolean(webhookSecret()),
     stripeWebhookUrl: `${config.baseUrl}/api/webhook/stripe`,
+    manualPayments: getSetting('manual_payments', '0') === '1',
+    manualCashapp: getSetting('manual_cashapp', ''),
+    manualPaypal: getSetting('manual_paypal', ''),
+    manualCrypto: getSetting('manual_crypto', ''),
+    manualInstructions: getSetting('manual_instructions', ''),
+    paymentMode: publicPaymentMode(),
     demoMode: config.demoMode,
     botSecretConfigured: Boolean(config.botSecret),
   });
 });
 
 router.put('/settings', (req, res) => {
-  const { brand, supportEmail, discordInvite, webhookUrl, stripeSecretKey, stripeWebhookSecret, clearStripe } =
-    req.body || {};
+  const {
+    brand,
+    supportEmail,
+    discordInvite,
+    discordTicketUrl,
+    webhookUrl,
+    stripeSecretKey,
+    stripeWebhookSecret,
+    clearStripe,
+    manualPayments,
+    manualCashapp,
+    manualPaypal,
+    manualCrypto,
+    manualInstructions,
+  } = req.body || {};
 
   let nextStripeKey;
   if (stripeSecretKey !== undefined) {
@@ -554,6 +609,70 @@ router.put('/settings', (req, res) => {
     }
   }
 
+  let nextCashapp;
+  if (manualCashapp !== undefined) {
+    let raw = String(manualCashapp).trim();
+    if (raw) {
+      raw = raw
+        .replace(/^https?:\/\/(?:www\.)?cash\.app\//i, '')
+        .replace(/^\$/, '')
+        .split(/[/?#]/)[0];
+      if (!/^[A-Za-z][A-Za-z0-9]{0,19}$/.test(raw)) {
+        return res.status(400).json({ error: 'Enter a Cash App cashtag like $yourname.' });
+      }
+      nextCashapp = `$${raw}`;
+    } else {
+      nextCashapp = '';
+    }
+  }
+
+  let nextPaypal;
+  if (manualPaypal !== undefined) {
+    let raw = String(manualPaypal).trim();
+    if (raw) {
+      if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+      let parsed;
+      try {
+        parsed = new URL(raw);
+      } catch {
+        return res.status(400).json({ error: 'Enter a valid paypal.me link.' });
+      }
+      if (!['paypal.me', 'www.paypal.me'].includes(parsed.hostname.toLowerCase())) {
+        return res.status(400).json({ error: 'Enter a paypal.me link, e.g. https://paypal.me/yourname.' });
+      }
+      nextPaypal = parsed.toString();
+    } else {
+      nextPaypal = '';
+    }
+  }
+
+  let nextCrypto;
+  if (manualCrypto !== undefined) nextCrypto = String(manualCrypto).trim().slice(0, 800);
+  let nextInstructions;
+  if (manualInstructions !== undefined) nextInstructions = String(manualInstructions).trim().slice(0, 600);
+
+  let nextTicketUrl;
+  if (discordTicketUrl !== undefined) {
+    const raw = String(discordTicketUrl).trim();
+    if (raw) {
+      if (!/^https?:\/\/[^\s]+$/i.test(raw)) {
+        return res.status(400).json({ error: 'Enter a valid Discord ticket URL.' });
+      }
+      nextTicketUrl = raw.slice(0, 300);
+    } else {
+      nextTicketUrl = '';
+    }
+  }
+
+  const effectiveEnabled =
+    manualPayments !== undefined ? Boolean(manualPayments) : getSetting('manual_payments', '0') === '1';
+  const effectiveCashapp = nextCashapp !== undefined ? nextCashapp : getSetting('manual_cashapp', '');
+  const effectivePaypal = nextPaypal !== undefined ? nextPaypal : getSetting('manual_paypal', '');
+  const effectiveCrypto = nextCrypto !== undefined ? nextCrypto : getSetting('manual_crypto', '');
+  if (effectiveEnabled && !effectiveCashapp && !effectivePaypal && !effectiveCrypto) {
+    return res.status(400).json({ error: 'Add at least one payment method before enabling manual payments.' });
+  }
+
   if (brand !== undefined) setSetting('brand', String(brand).slice(0, 60));
   if (supportEmail !== undefined) {
     const email = normalizeEmail(supportEmail);
@@ -561,6 +680,7 @@ router.put('/settings', (req, res) => {
     setSetting('support_email', email);
   }
   if (discordInvite !== undefined) setSetting('discord_invite', String(discordInvite).trim().slice(0, 200));
+  if (nextTicketUrl !== undefined) setSetting('discord_ticket_url', nextTicketUrl);
   if (webhookUrl !== undefined) {
     const url = String(webhookUrl).trim();
     if (url && !isValidWebhook(url)) return res.status(400).json({ error: 'Enter a valid Discord webhook URL.' });
@@ -578,13 +698,26 @@ router.put('/settings', (req, res) => {
     setSetting('stripe_webhook_secret', '');
     resetStripeClient();
   }
+  if (nextCashapp !== undefined) setSetting('manual_cashapp', nextCashapp);
+  if (nextPaypal !== undefined) setSetting('manual_paypal', nextPaypal);
+  if (nextCrypto !== undefined) setSetting('manual_crypto', nextCrypto);
+  if (nextInstructions !== undefined) setSetting('manual_instructions', nextInstructions);
+  if (manualPayments !== undefined) setSetting('manual_payments', manualPayments ? '1' : '0');
+
   audit('admin', 'settings.update', null, {
     webhookChanged: webhookUrl !== undefined,
     brand: brand !== undefined ? String(brand) : undefined,
     stripeKeyChanged: nextStripeKey !== undefined || clearStripe === true,
     stripeWebhookChanged: nextWebhookSecret !== undefined || clearStripe === true,
+    manualChanged:
+      manualPayments !== undefined ||
+      nextCashapp !== undefined ||
+      nextPaypal !== undefined ||
+      nextCrypto !== undefined ||
+      nextInstructions !== undefined ||
+      nextTicketUrl !== undefined,
   });
-  res.json({ ok: true });
+  res.json({ ok: true, paymentMode: publicPaymentMode() });
 });
 
 router.post('/settings/test-stripe', async (_req, res) => {
