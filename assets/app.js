@@ -34,6 +34,7 @@
     const opts = {
       method: options.method || 'GET',
       credentials: 'include',
+      cache: 'no-store',
       headers: { Accept: 'application/json', ...(options.headers || {}) },
     };
     if (token) opts.headers.Authorization = `Bearer ${token}`;
