@@ -99,7 +99,19 @@ A Render persistent disk (Starter plan) is required so SQLite survives deploys.
 Step-by-step: **`deploy/SETUP.md`**. Ready-to-copy `deploy/Caddyfile` and
 `deploy/ketamine.service` are included.
 
-Minimum: one Linux VPS (1 vCPU / 1 GB is enough), your domain's DNS pointed at it.
+**C. Static on GitHub Pages + API on your own PC behind an SSH tunnel (current setup)**
+`assets/config.js` points the static site at the tunnel hostname and
+`assets/api-base.json` revalidates it on every page load. `scripts/tunnel-watchdog.ps1`
+keeps the API and tunnel alive and republishes a rotated hostname. The launcher
+`scripts/watchdog-launcher.vbs` is copied into the Windows Startup folder so it runs at
+every logon.
+
+- Tunnel: `ssh -T -R 80:127.0.0.1:3000 nokey@localhost.run -- --output json`
+- Tunnel hostnames rotate; do not hardcode one elsewhere.
+- `localhost` on Windows can resolve to IPv6, so always forward to `127.0.0.1`.
+- The PC must stay awake with the server and tunnel running.
+
+Minimum for A and B: one Linux VPS (1 vCPU / 1 GB is enough), your domain's DNS pointed at it.
 
 1. **DNS** — create an `A` record for `ketaminecc.website` (and optionally `www`) pointing to
    the VPS IP. If your registrar offers proxy/CDN, leave it **DNS-only**.
@@ -255,8 +267,8 @@ POST /api/admin/*                  (admin session)
 ## 8. Security notes
 
 - Passwords: scrypt with per-user salts.
-- Sessions: random 256-bit tokens, only SHA-256 hashes stored; HTTP-only, SameSite=Lax,
-  Secure cookies under HTTPS.
+- Sessions: random 256-bit tokens, only SHA-256 hashes stored. The browser keeps the token
+  in `localStorage` and sends it as a bearer token (cookies also work on same-origin setups).
 - License keys and Discord payloads: AES-256-GCM with a server-side key.
 - Stripe: raw-body signature verification before fulfillment.
 - CSP, frame denial, nosniff, referrer and permissions policies.
