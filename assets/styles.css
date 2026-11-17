@@ -2633,6 +2633,7 @@ h3 {
 
 .table-wrap {
   overflow-x: auto;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(9, 11, 16, 0.65);
@@ -2677,6 +2678,10 @@ h3 {
   font-family: var(--font-mono);
 }
 
+.data-table .key-cell {
+  white-space: nowrap;
+}
+
 .data-table .dim {
   color: var(--dim);
   font-family: var(--font-mono);
@@ -2686,7 +2691,7 @@ h3 {
 .data-table .actions {
   display: flex;
   gap: 0.35rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .table-empty {
@@ -2997,6 +3002,7 @@ h3 {
   border-radius: 12px;
   background: rgba(11, 14, 20, 0.7);
   padding: 1.1rem;
+  min-width: 0;
 }
 
 .admin-card h3 {
@@ -3125,7 +3131,7 @@ h3 {
     display: grid;
   }
   .admin-section-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .checkout-grid {
     grid-template-columns: 1fr;

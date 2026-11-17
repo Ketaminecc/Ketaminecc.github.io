@@ -37,6 +37,8 @@ function userForOrder(order) {
 function licenseStatus(license) {
   if (!license) return 'missing';
   if (license.status === 'revoked' || license.status === 'blacklisted') return license.status;
+  if (license.status === 'stock') return 'stock';
+  if (!license.order_id && !license.user_id && !license.email) return 'stock';
   if (license.expires_at && license.expires_at < Date.now()) return 'expired';
   return 'active';
 }
@@ -52,13 +54,24 @@ function createOrder(user, product) {
   return getOrderById(id);
 }
 
-function createLicenseRecord({ order, product, key, issuedAt, expiresAt, note = null, userId = null, email = null }) {
+function createLicenseRecord({
+  order,
+  product,
+  key,
+  issuedAt,
+  expiresAt,
+  durationDays = null,
+  note = null,
+  userId = null,
+  email = null,
+  status = 'active',
+}) {
   const id = newId('lic');
   const hash = licenseHash(key);
   const ownerEmail = email || (order ? order.customer_email : null);
   db.prepare(
-    `INSERT INTO licenses (id, order_id, user_id, product_id, email, key_enc, key_hash, key_preview, status, issued_at, expires_at, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`
+    `INSERT INTO licenses (id, order_id, user_id, product_id, email, key_enc, key_hash, key_preview, status, issued_at, expires_at, duration_days, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     order ? order.id : null,
@@ -68,25 +81,77 @@ function createLicenseRecord({ order, product, key, issuedAt, expiresAt, note = 
     encryptText(key),
     hash,
     keyPreview(key),
+    status,
     issuedAt,
     expiresAt,
+    durationDays,
     note
   );
   return db.prepare('SELECT * FROM licenses WHERE id = ?').get(id);
 }
 
-function issueKey({ product, order = null, userId = null, durationDays, note = null, email = null }) {
+function generateUniqueKey() {
   let key = generateLicenseKey();
   let attempts = 0;
   while (db.prepare('SELECT 1 AS hit FROM licenses WHERE key_hash = ?').get(licenseHash(key)) && attempts < 6) {
     key = generateLicenseKey();
     attempts += 1;
   }
+  return key;
+}
+
+function issueKey({ product, order = null, userId = null, durationDays, note = null, email = null }) {
+  const key = generateUniqueKey();
   const issuedAt = Date.now();
   const days = durationDays === undefined ? product.durationDays : durationDays;
   const expiresAt = days === null || days === undefined ? null : issuedAt + Number(days) * DAY;
-  const license = createLicenseRecord({ order, product, key, issuedAt, expiresAt, note, userId, email });
+  const license = createLicenseRecord({
+    order,
+    product,
+    key,
+    issuedAt,
+    expiresAt,
+    durationDays: days ?? null,
+    note,
+    userId,
+    email,
+  });
   return { license, key };
+}
+
+function issueStockKey({ product, durationDays, note = null }) {
+  const key = generateUniqueKey();
+  const days = durationDays === undefined ? product.durationDays : durationDays;
+  const license = createLicenseRecord({
+    product,
+    key,
+    issuedAt: Date.now(),
+    expiresAt: null,
+    durationDays: days ?? null,
+    note,
+    status: 'stock',
+  });
+  return { license, key };
+}
+
+function claimStockKey(order, product) {
+  const row = db
+    .prepare("SELECT * FROM licenses WHERE product_id = ? AND status = 'stock' ORDER BY issued_at ASC LIMIT 1")
+    .get(product.id);
+  if (!row) return null;
+  const issuedAt = Date.now();
+  const days = row.duration_days === undefined ? product.durationDays : row.duration_days;
+  const expiresAt = days === null || days === undefined ? null : issuedAt + Number(days) * DAY;
+  const result = db
+    .prepare(
+      `UPDATE licenses
+          SET status = 'active', order_id = ?, user_id = ?, email = ?, issued_at = ?, expires_at = ?
+        WHERE id = ? AND status = 'stock'`
+    )
+    .run(order.id, order.user_id, order.customer_email, issuedAt, expiresAt, row.id);
+  if (!result.changes) return null;
+  const license = db.prepare('SELECT * FROM licenses WHERE id = ?').get(row.id);
+  return { license, key: decryptText(license.key_enc) };
 }
 
 async function fulfillOrder(order, { paymentIntent = null, sessionId = null, ip = null, source = 'stripe' } = {}) {
@@ -107,12 +172,14 @@ async function fulfillOrder(order, { paymentIntent = null, sessionId = null, ip 
     durationDays: 30,
     name: fresh.product_name,
   };
-  const { license, key } = issueKey({
-    product,
-    order: fresh,
-    durationDays: product.durationDays,
-    email: fresh.customer_email,
-  });
+  const { license, key } =
+    claimStockKey(fresh, product) ||
+    issueKey({
+      product,
+      order: fresh,
+      durationDays: product.durationDays,
+      email: fresh.customer_email,
+    });
   const paidAt = Date.now();
 
   db.prepare(
@@ -187,6 +254,7 @@ function serializeLicenseAdmin(row) {
     status: licenseStatus(row),
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
+    durationDays: row.duration_days ?? null,
     revokedAt: row.revoked_at,
     note: row.note,
   };
@@ -237,6 +305,7 @@ module.exports = {
   createOrder,
   createLicenseRecord,
   issueKey,
+  issueStockKey,
   fulfillOrder,
   serializeOrderForUser,
   serializeLicenseAdmin,

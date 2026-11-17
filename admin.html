@@ -125,6 +125,7 @@
                 <input class="input grow" id="license-search" type="search" placeholder="Search key, email, or order">
                 <button class="btn btn-ghost btn-small" type="button" id="licenses-refresh">Search</button>
               </div>
+              <p class="form-note" id="license-stock" style="margin-bottom:.7rem">Loading stock…</p>
             </div>
             <div class="table-wrap" style="border:0;border-top:1px solid var(--line)">
               <table class="data-table">
@@ -135,7 +136,7 @@
           </div>
 
           <div class="admin-card">
-            <h3>Generate keys</h3>
+            <h3>Restock keys</h3>
             <div class="form-error" id="license-error" role="alert"></div>
             <form id="license-form">
               <div class="field">
@@ -144,8 +145,8 @@
               </div>
               <div class="field-row">
                 <div class="field">
-                  <label for="license-quantity">Quantity</label>
-                  <input class="input" id="license-quantity" type="number" min="1" max="100" value="1" required>
+                  <label for="license-quantity">How many</label>
+                  <input class="input" id="license-quantity" type="number" min="1" max="500" value="25" required>
                 </div>
                 <div class="field">
                   <label for="license-duration">Duration override</label>
@@ -153,21 +154,16 @@
                 </div>
               </div>
               <div class="field">
-                <label for="license-email">Account email</label>
-                <input class="input" id="license-email" type="email" placeholder="customer@example.com" required>
-                <span class="hint">Keys are linked to this account email.</span>
+                <label for="license-note">Batch note</label>
+                <input class="input" id="license-note" type="text" maxlength="300" placeholder="Restock, giveaway, etc.">
               </div>
-              <div class="field">
-                <label for="license-note">Note</label>
-                <input class="input" id="license-note" type="text" maxlength="300" placeholder="Support, giveaway, etc.">
-              </div>
-              <button class="btn btn-primary btn-block" type="submit" id="license-submit">Generate licenses</button>
-              <p class="form-note" style="margin-top:.6rem">Duration accepts days, <code class="mono">lifetime</code>, or blank for default.</p>
+              <button class="btn btn-primary btn-block" type="submit" id="license-submit">Generate stock</button>
+              <p class="form-note" style="margin-top:.6rem">Unassigned keys. Purchases consume stock automatically; checkout generates a key if stock is empty.</p>
             </form>
             <div id="license-result" hidden>
               <hr class="hr">
               <div class="panel-head" style="margin-bottom:.5rem">
-                <h3 style="font-size:.8rem">Generated</h3>
+                <h3 style="font-size:.8rem">Added to stock</h3>
                 <button class="btn btn-subtle btn-small" type="button" id="copy-all-keys">Copy all</button>
               </div>
               <div class="generated-keys" id="generated-keys"></div>

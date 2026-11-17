@@ -21,7 +21,7 @@ const {
   licenseForOrder,
   serializeLicenseAdmin,
   revokeLicensesForOrder,
-  issueKey,
+  issueStockKey,
   licenseStatus,
 } = require('./orders');
 const { refundPaymentIntent, stripeConfigured, verifyStripeKey } = require('./stripe');
@@ -193,13 +193,23 @@ router.get('/licenses', (req, res) => {
        ORDER BY l.issued_at DESC LIMIT 300`
     )
     .all(like, like, like, hashed);
-  res.json({ licenses: rows.map(serializeLicenseAdmin) });
+  const stock = db
+    .prepare(
+      `SELECT l.product_id AS productId, COALESCE(p.name, 'Unknown') AS productName, COUNT(*) AS count
+       FROM licenses l
+       LEFT JOIN products p ON p.id = l.product_id
+       WHERE l.status = 'stock'
+       GROUP BY l.product_id
+       ORDER BY count DESC`
+    )
+    .all();
+  res.json({ licenses: rows.map(serializeLicenseAdmin), stock });
 });
 
 router.post('/licenses/generate', (req, res) => {
   const product = getProduct(req.body?.productId || '');
   if (!product) return res.status(404).json({ error: 'Product not found.' });
-  const quantity = Math.min(100, Math.max(1, Number(req.body?.quantity) || 1));
+  const quantity = Math.min(500, Math.max(1, Number(req.body?.quantity) || 1));
 
   let durationDays;
   if (req.body?.durationDays === undefined || req.body?.durationDays === '' || req.body?.durationDays === null) {
@@ -210,24 +220,24 @@ router.post('/licenses/generate', (req, res) => {
     durationDays = Math.max(1, Math.min(3650, Number(req.body.durationDays) || 0));
   }
 
-  let email = normalizeEmail(req.body?.email);
-  if (!email || !validEmail(email)) {
-    return res.status(400).json({ error: 'An account email is required for every key.' });
-  }
-  let userId = null;
-  let note = String(req.body?.note || '').slice(0, 300) || null;
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (user) userId = user.id;
-  else note = [note, `pending account: ${email}`].filter(Boolean).join(' · ');
-
+  const note = String(req.body?.note || '').slice(0, 300) || null;
   const created = [];
   for (let i = 0; i < quantity; i += 1) {
-    const { license, key } = issueKey({ product, userId, durationDays, note, email });
-    created.push({ id: license.id, key, preview: license.key_preview, expiresAt: license.expires_at });
+    const { license, key } = issueStockKey({ product, durationDays, note });
+    created.push({
+      id: license.id,
+      key,
+      preview: license.key_preview,
+      durationDays: license.duration_days,
+    });
   }
 
-  audit('admin', 'license.generate', product.slug, { quantity, durationDays, email });
-  res.status(201).json({ keys: created, product: product.name, durationDays });
+  const stockCount = db
+    .prepare("SELECT COUNT(*) AS c FROM licenses WHERE product_id = ? AND status = 'stock'")
+    .get(product.id).c;
+
+  audit('admin', 'license.restock', product.slug, { quantity, durationDays, stockCount });
+  res.status(201).json({ keys: created, product: product.name, durationDays, stockCount });
 });
 
 router.post('/licenses/:id/revoke', (req, res) => {

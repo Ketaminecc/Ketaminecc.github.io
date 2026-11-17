@@ -23,7 +23,7 @@
   const viewMeta = {
     overview: ['Overview', 'Control plane · encrypted purchase audit'],
     orders: ['Orders', 'Payments, fulfillment, refunds, and revocation'],
-    licenses: ['Licenses', 'Issue, inspect, revoke, or blacklist keys'],
+    licenses: ['Licenses', 'Restock, inspect, revoke, or blacklist keys'],
     products: ['Products', 'Storefront plans and Stripe pricing'],
     customers: ['Customers', 'Accounts, spend, and access'],
     blacklist: ['Blacklist', 'Block emails, keys, IPs, and Discord IDs'],
@@ -41,7 +41,7 @@
   const orderPill = (status) =>
     pill(status, { paid: 'ok', pending: 'warn', refunded: 'neutral', expired: 'neutral', failed: 'bad' });
   const licensePill = (status) =>
-    pill(status, { active: 'ok', revoked: 'bad', blacklisted: 'bad', expired: 'neutral', missing: 'neutral' });
+    pill(status, { active: 'ok', stock: 'warn', revoked: 'bad', blacklisted: 'bad', expired: 'neutral', missing: 'neutral' });
 
   function showLogin() {
     shell.hidden = true;
@@ -315,6 +315,13 @@
     const q = encodeURIComponent($('#license-search').value.trim());
     const data = await adminApi(`/api/admin/licenses?q=${q}`);
     state.licenses = data.licenses;
+    const stockLine = $('#license-stock');
+    if (stockLine) {
+      const stock = data.stock || [];
+      stockLine.textContent = stock.length
+        ? `In stock: ${stock.map((row) => `${row.productName} ${row.count}`).join(' · ')}`
+        : 'In stock: 0. Checkout will generate keys on demand.';
+    }
     const body = $('#licenses-body');
     if (!data.licenses.length) {
       body.innerHTML = emptyRow(6, 'No licenses found.');
@@ -324,15 +331,15 @@
       .map(
         (license) => `
         <tr>
-          <td class="num" style="word-break:break-all">${esc(license.key || license.preview)}</td>
+          <td class="num key-cell">${esc(license.key || license.preview)}</td>
           <td>${esc(license.productName || '—')}</td>
-          <td>${esc(license.email || license.note || 'unassigned')}</td>
+          <td>${license.status === 'stock' ? '<span class="dim">In stock</span>' : esc(license.email || license.note || 'unassigned')}</td>
           <td>${licensePill(license.status)}</td>
-          <td class="dim">${license.expiresAt ? date(license.expiresAt) : 'Never'}</td>
+          <td class="dim">${license.expiresAt ? date(license.expiresAt) : license.status === 'stock' ? `${license.durationDays || '∞'} days after purchase` : 'Never'}</td>
           <td>
             <div class="actions">
               <button class="btn btn-subtle btn-small" type="button" data-copy="${esc(license.key || '')}">Copy</button>
-              ${license.status === 'active' ? `<button class="btn btn-subtle btn-small" type="button" data-license-revoke="${esc(license.id)}">Revoke</button>` : ''}
+              ${license.status === 'active' || license.status === 'stock' ? `<button class="btn btn-subtle btn-small" type="button" data-license-revoke="${esc(license.id)}">Revoke</button>` : ''}
               ${license.status !== 'blacklisted' ? `<button class="btn btn-danger btn-small" type="button" data-license-blacklist="${esc(license.id)}">Blacklist</button>` : ''}
             </div>
           </td>
@@ -370,9 +377,8 @@
     event.preventDefault();
     clearError('license-error');
     const productId = $('#license-product').value;
-    const quantity = Number($('#license-quantity').value) || 1;
+    const quantity = Math.min(500, Math.max(1, Number($('#license-quantity').value) || 1));
     const durationRaw = $('#license-duration').value.trim();
-    const email = $('#license-email').value.trim();
     const note = $('#license-note').value.trim();
     const btn = $('#license-submit');
     btn.disabled = true;
@@ -380,7 +386,6 @@
     try {
       const body = { productId, quantity, note };
       if (durationRaw) body.durationDays = /^\d+$/.test(durationRaw) ? Number(durationRaw) : durationRaw;
-      if (email) body.email = email;
       const result = await adminApi('/api/admin/licenses/generate', { method: 'POST', body });
       state.generatedKeys = result.keys;
       $('#license-result').hidden = false;
@@ -393,13 +398,13 @@
           </div>`
         )
         .join('');
-      window.KET.toast(`${result.keys.length} key(s) generated for ${result.product}.`, 'ok');
+      window.KET.toast(`${result.keys.length} keys added to stock for ${result.product}.`, 'ok');
       await loadLicenses();
     } catch (err) {
-      if (err.status !== 401) showError('license-error', err.message || 'Key generation failed.');
+      if (err.status !== 401) showError('license-error', err.message || 'Restock failed.');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Generate licenses';
+      btn.textContent = 'Generate stock';
     }
   }
 

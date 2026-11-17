@@ -80,6 +80,7 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'active',
     issued_at INTEGER NOT NULL,
     expires_at INTEGER,
+    duration_days INTEGER,
     revoked_at INTEGER,
     note TEXT
   );
@@ -128,6 +129,11 @@ db.exec(`
 // Migrate databases created before license emails were stored.
 try {
   db.exec('ALTER TABLE licenses ADD COLUMN email TEXT');
+} catch {
+  /* column already exists */
+}
+try {
+  db.exec('ALTER TABLE licenses ADD COLUMN duration_days INTEGER');
 } catch {
   /* column already exists */
 }

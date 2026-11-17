@@ -197,9 +197,10 @@ The admin console can also reveal a code under **Settings → Verification codes
 
 - **Overview** — 30-day revenue/orders, active licenses, expiries, pending orders, refunds.
 - **Orders** — search, decrypt details, refund through Stripe, revoke keys.
-- **Licenses** — generate 1–100 at once for any product, any duration (`lifetime` or days),
-  and attach them to an account email. Revoke, blacklist, copy keys. Keys issued to an email
-  appear for that account automatically; registering later claims them.
+- **Licenses** — restock 1–500 unassigned keys at once for any product and duration
+  (`lifetime` or days). Checkout consumes stock automatically and stamps the buyer's account
+  email on the key; if stock is empty, a key is generated at purchase. Search, revoke,
+  blacklist, copy keys.
 - **Products** — edit name, tagline, price, duration, features, badge, currency note, sort,
   visibility; create new plans. Changes are live immediately.
 - **Customers** — spend, orders, active keys, last login; suspend or restore.
