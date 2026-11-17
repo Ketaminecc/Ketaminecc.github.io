@@ -48,12 +48,16 @@
       /* A tunnel rotation can invalidate the hostname mid-session. Refresh it
          and retry safe reads once; never retry a POST (checkout must not run twice). */
       const method = String(opts.method || 'GET').toUpperCase();
+      if (method !== 'GET' && method !== 'HEAD') throw err;
       const before = apiBase();
       const refreshed = typeof window.KET_REFRESH_BASE === 'function' ? await window.KET_REFRESH_BASE() : false;
-      if ((method === 'GET' || method === 'HEAD') && refreshed && apiBase() !== before) {
+      if (refreshed && apiBase() !== before) {
         res = await fetch(apiUrl(path), opts);
       } else {
-        throw err;
+        /* Short tunnel hiccup: one delayed retry keeps pages from failing on a
+           reconnect that finishes between the first attempt and the refresh. */
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        res = await fetch(apiUrl(path), opts);
       }
     }
     let data = null;
