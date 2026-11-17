@@ -720,10 +720,13 @@
     btn.textContent = 'Testing…';
     try {
       const data = await adminApi('/api/admin/settings/test-stripe', { method: 'POST', body: {} });
-      window.KET.toast(
-        `Stripe OK · ${data.account}${data.chargesEnabled ? '' : ' · charges disabled'}`,
-        data.chargesEnabled ? 'ok' : 'error'
-      );
+      const note =
+        data.mode === 'restricted'
+          ? ' · restricted key'
+          : data.chargesEnabled === false
+            ? ' · charges disabled'
+            : '';
+      window.KET.toast(`Stripe OK · ${data.account}${note}`, data.chargesEnabled === false ? 'error' : 'ok');
       await loadSettings();
     } catch (err) {
       if (err.status !== 401) showError('stripe-error', err.message || 'Stripe test failed.');

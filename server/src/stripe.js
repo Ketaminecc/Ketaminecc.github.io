@@ -75,6 +75,9 @@ async function createCheckoutSession({ order, product, user }) {
       productId: product.id,
       userId: user.id,
     },
+    /* Dynamic price_data has no Stripe product tax code. Accounts with
+       Managed Payments enabled reject that unless it is disabled per session. */
+    managed_payments: { enabled: false },
     payment_intent_data: {
       metadata: {
         orderId: order.id,
@@ -123,9 +126,32 @@ async function verifyStripeKey() {
   if (!client) return { ok: false, reason: 'not_configured' };
   try {
     const account = await client.accounts.retrieve();
-    return { ok: true, account: account.id, country: account.country, chargesEnabled: account.charges_enabled };
+    return {
+      ok: true,
+      mode: 'full',
+      account: account.id,
+      country: account.country,
+      chargesEnabled: account.charges_enabled,
+    };
   } catch (err) {
-    return { ok: false, reason: String(err.message || err) };
+    const message = String(err.message || err);
+    /* Restricted keys cannot read account details. Exercise the exact
+       permission fulfillment needs instead of failing the whole test. */
+    const restricted = err && (err.statusCode === 403 || /permission|restricted/i.test(message));
+    if (!restricted) return { ok: false, reason: message };
+    try {
+      await client.checkout.sessions.list({ limit: 1 });
+      return {
+        ok: true,
+        mode: 'restricted',
+        account: 'restricted key',
+        country: null,
+        chargesEnabled: null,
+        warning: message,
+      };
+    } catch (err2) {
+      return { ok: false, reason: String(err2.message || err2) };
+    }
   }
 }
 

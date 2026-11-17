@@ -64,10 +64,13 @@ Orders cannot be fulfilled without the authenticated account that created them.
 
 ## 3. Stripe setup (live)
 
-1. In the Stripe Dashboard, complete business activation.
+1. In the Stripe Dashboard, complete business activation. Checkout Sessions are rejected until
+   card payments are active (`charges_enabled: true`).
 2. Add the **secret key** in either place:
    - **Admin → Settings → Stripe payments** (stored encrypted in SQLite), or
    - `server/.env` as `STRIPE_SECRET_KEY` (wins over the admin value).
+   A restricted key (`rk_live_…`) works if it grants **Checkout Sessions: read/write** and
+   **Refunds: write**; account read is only needed for the Settings connection test.
 3. Optional webhook:
    - URL: the value shown in **Admin → Settings → Stripe payments** (`/api/webhook/stripe`),
      or `<PUBLIC_BASE_URL>/api/webhook/stripe`
