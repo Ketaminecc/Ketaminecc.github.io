@@ -292,7 +292,8 @@ POST /api/admin/*                  (admin session)
 
 - [ ] `DEMO_MODE=false`
 - [ ] `NODE_ENV=production`, HTTPS base URL
-- [ ] Stripe live keys + webhook secret
+- [ ] Stripe live keys (env or Admin → Settings) + optional webhook signing secret
+- [ ] Custom-domain TLS issued and Enforce HTTPS on
 - [ ] Fresh secrets if this folder was ever shared (`SESSION_SECRET`, `ENC_KEY`,
       `BOT_SHARED_SECRET`); rotating `ENC_KEY` makes existing rows unreadable
 - [ ] Change the admin secret from the setup value
