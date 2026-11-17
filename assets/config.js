@@ -16,4 +16,15 @@
   }
 
   window.KET_API_BASE = TUNNEL_API;
+
+  /* The CDN caches this file, so revalidate the tunnel from a JSON file with
+     no-store. This keeps a rotated hostname from being masked by a stale
+     cached config.js. */
+  window.KET_API_READY = fetch(`/assets/api-base.json?t=${Date.now()}`, { cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      const api = data && typeof data.api === 'string' ? data.api.replace(/\/+$/, '') : '';
+      if (/^https?:\/\//i.test(api)) window.KET_API_BASE = api;
+    })
+    .catch(() => null);
 })();

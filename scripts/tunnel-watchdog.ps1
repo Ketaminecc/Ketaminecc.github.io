@@ -159,6 +159,14 @@ function Update-SiteConfig([string]$Url) {
     }
   }
 
+  $jsonPath = Join-Path $RepoRoot 'assets\api-base.json'
+  $json = "{`n  `"api`": `"$Url`"`n}`n"
+  $current = if (Test-Path $jsonPath) { [string](Get-Content -Path $jsonPath -Raw) } else { '' }
+  if ($current.Trim() -ne $json.Trim()) {
+    Set-FileText $jsonPath $json
+    $changed = $true
+  }
+
   return $changed
 }
 
@@ -166,7 +174,7 @@ function Publish-Config {
   $env:GIT_TERMINAL_PROMPT = '0'
   Push-Location $RepoRoot
   try {
-    & $Git add assets/config.js 2>&1 | Out-Null
+    & $Git add assets/config.js assets/api-base.json 2>&1 | Out-Null
     $staged = & $Git diff --cached --name-only 2>&1
     if ($staged) {
       & $Git -c "user.name=$GitUser" -c "user.email=$GitEmail" commit -q -m "chore: point api at $script:PublicUrl" 2>&1 | Out-Null
@@ -175,24 +183,12 @@ function Publish-Config {
     $ahead = & $Git log 'origin/main..HEAD' --oneline 2>&1
     if (-not $ahead) { return }
 
-    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $out = Join-Path $LogDir "git-push-$stamp.out.log"
-    $err = Join-Path $LogDir "git-push-$stamp.err.log"
-    $proc = Start-Process -FilePath $Git -ArgumentList @('push', 'origin', 'main') `
-      -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru `
-      -RedirectStandardOutput $out -RedirectStandardError $err
-
-    if (-not $proc.WaitForExit(120000)) {
-      try { $proc.Kill() } catch {}
-      Write-Log 'git push timed out'
-      return
-    }
-    $proc.WaitForExit()
-    $code = $proc.ExitCode
+    $output = & $Git push origin main 2>&1 | Out-String
+    $code = $LASTEXITCODE
     if ($code -eq 0) {
       Write-Log 'Pushed new API base to GitHub Pages'
     } else {
-      Write-Log "git push failed (exit $code); see $err"
+      Write-Log "git push failed (exit $code): $($output.Trim())"
     }
   } catch {
     Write-Log "Publish failed: $($_.Exception.Message)"

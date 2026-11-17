@@ -3,7 +3,7 @@
 /* Shared client helpers */
 (function () {
   const KET = (window.KET = window.KET || {});
-  const API_BASE = String(window.KET_API_BASE || '').replace(/\/+$/, '');
+  const apiBase = () => String(window.KET_API_BASE || '').replace(/\/+$/, '');
 
   /* Split hosting keeps the API on a different origin, where third-party
      cookies are unreliable. Sessions are therefore carried as bearer tokens. */
@@ -25,9 +25,10 @@
     }
   };
 
-  const apiUrl = (path) => (/^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`);
+  const apiUrl = (path) => (/^https?:\/\//i.test(path) ? path : `${apiBase()}${path}`);
 
   KET.api = async function api(path, options = {}) {
+    if (window.KET_API_READY) await window.KET_API_READY;
     const tokenKey = tokenKeyFor(path);
     const token = readToken(tokenKey);
     const opts = {
