@@ -187,10 +187,12 @@ function Publish-Config {
       Write-Log 'git push timed out'
       return
     }
-    if ($proc.ExitCode -eq 0) {
+    $proc.WaitForExit()
+    $code = $proc.ExitCode
+    if ($code -eq 0) {
       Write-Log 'Pushed new API base to GitHub Pages'
     } else {
-      Write-Log "git push failed (exit $($proc.ExitCode)); see $err"
+      Write-Log "git push failed (exit $code); see $err"
     }
   } catch {
     Write-Log "Publish failed: $($_.Exception.Message)"
