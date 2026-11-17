@@ -39,9 +39,9 @@ router.post('/login', loginLimiter, (req, res) => {
     audit('unknown', 'admin.login_failed', null, { ip: req.ip });
     return res.status(401).json({ error: 'Invalid admin key.' });
   }
-  issueSession(req, res, { role: 'admin', cookieName: ADMIN_COOKIE, ttl: ADMIN_TTL });
+  const session = issueSession(req, res, { role: 'admin', cookieName: ADMIN_COOKIE, ttl: ADMIN_TTL });
   audit('admin', 'admin.login', null, { ip: req.ip });
-  return res.json({ ok: true });
+  return res.json({ ok: true, token: session.token });
 });
 
 router.post('/logout', (req, res) => {

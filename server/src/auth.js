@@ -31,14 +31,20 @@ function issueSession(req, res, { userId = null, role, cookieName, ttl }) {
   return { token, expiresAt: createdAt + ttl };
 }
 
+function bearerToken(req) {
+  const header = String(req.headers.authorization || '');
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
 function clearSession(req, res, cookieName) {
-  const token = parseCookies(req)[cookieName];
+  const token = bearerToken(req) || parseCookies(req)[cookieName];
   if (token) db.prepare('DELETE FROM sessions WHERE id = ?').run(sha256(token));
   res.clearCookie(cookieName, { path: '/' });
 }
 
 function sessionFromRequest(req, cookieName, role) {
-  const token = parseCookies(req)[cookieName];
+  const token = bearerToken(req) || parseCookies(req)[cookieName];
   if (!token) return null;
   const row = db
     .prepare('SELECT * FROM sessions WHERE id = ? AND role = ? AND expires_at > ?')

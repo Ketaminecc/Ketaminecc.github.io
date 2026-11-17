@@ -110,9 +110,9 @@ router.post('/auth/register', registerLimiter, async (req, res) => {
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   claimEmailLicenses(user);
-  issueSession(req, res, { userId: id, role: 'user', cookieName: USER_COOKIE, ttl: 14 * 24 * 60 * 60 * 1000 });
+  const session = issueSession(req, res, { userId: id, role: 'user', cookieName: USER_COOKIE, ttl: 14 * 24 * 60 * 60 * 1000 });
   audit(`user:${email}`, 'account.register', id, { ip: req.ip });
-  return res.status(201).json({ user: mePayload(user) });
+  return res.status(201).json({ user: mePayload(user), token: session.token });
 });
 
 router.post('/auth/login', authLimiter, async (req, res) => {
@@ -128,8 +128,8 @@ router.post('/auth/login', authLimiter, async (req, res) => {
 
   db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(Date.now(), user.id);
   claimEmailLicenses(user);
-  issueSession(req, res, { userId: user.id, role: 'user', cookieName: USER_COOKIE, ttl: 14 * 24 * 60 * 60 * 1000 });
-  return res.json({ user: mePayload(user) });
+  const session = issueSession(req, res, { userId: user.id, role: 'user', cookieName: USER_COOKIE, ttl: 14 * 24 * 60 * 60 * 1000 });
+  return res.json({ user: mePayload(user), token: session.token });
 });
 
 router.post('/auth/logout', (req, res) => {
@@ -155,14 +155,14 @@ router.post('/auth/password', requireUser, async (req, res) => {
   const hash = await hashPassword(next);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id);
   db.prepare("DELETE FROM sessions WHERE user_id = ? AND role = 'user'").run(user.id);
-  issueSession(req, res, {
+  const session = issueSession(req, res, {
     userId: user.id,
     role: 'user',
     cookieName: USER_COOKIE,
     ttl: 14 * 24 * 60 * 60 * 1000,
   });
   audit(`user:${user.email}`, 'account.password_change', user.id, { ip: req.ip });
-  res.json({ ok: true });
+  res.json({ ok: true, token: session.token });
 });
 
 // ── Checkout & orders ────────────────────────────────────────────────────────

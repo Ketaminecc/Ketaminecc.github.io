@@ -5,14 +5,37 @@
   const KET = (window.KET = window.KET || {});
   const API_BASE = String(window.KET_API_BASE || '').replace(/\/+$/, '');
 
+  /* Split hosting keeps the API on a different origin, where third-party
+     cookies are unreliable. Sessions are therefore carried as bearer tokens. */
+  const TOKEN_KEYS = { user: 'ket_token', admin: 'ket_admin_token' };
+  const tokenKeyFor = (path) => (String(path).startsWith('/api/admin') ? TOKEN_KEYS.admin : TOKEN_KEYS.user);
+  const readToken = (key) => {
+    try {
+      return localStorage.getItem(key) || '';
+    } catch {
+      return '';
+    }
+  };
+  const writeToken = (key, value) => {
+    try {
+      if (value) localStorage.setItem(key, value);
+      else localStorage.removeItem(key);
+    } catch {
+      /* storage unavailable */
+    }
+  };
+
   const apiUrl = (path) => (/^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`);
 
   KET.api = async function api(path, options = {}) {
+    const tokenKey = tokenKeyFor(path);
+    const token = readToken(tokenKey);
     const opts = {
       method: options.method || 'GET',
       credentials: 'include',
       headers: { Accept: 'application/json', ...(options.headers || {}) },
     };
+    if (token) opts.headers.Authorization = `Bearer ${token}`;
     if (options.body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(options.body);
@@ -24,6 +47,8 @@
     } catch {
       data = null;
     }
+    if (data && typeof data.token === 'string' && data.token) writeToken(tokenKey, data.token);
+    if (/\/(?:auth|admin)\/logout$/.test(String(path))) writeToken(tokenKey, '');
     if (!res.ok) {
       const error = new Error((data && data.error) || `Request failed (${res.status})`);
       error.status = res.status;
