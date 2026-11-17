@@ -257,6 +257,9 @@ if (db.prepare('SELECT COUNT(*) AS c FROM products').get().c === 0) {
 // Rename the original "Pass" products in place (idempotent).
 db.prepare("UPDATE products SET name = 'Weekly License' WHERE slug = 'weekly' AND name = 'Weekly Pass'").run();
 db.prepare("UPDATE products SET name = 'Monthly License' WHERE slug = 'monthly' AND name = 'Monthly Pass'").run();
+// Keep historical order snapshots consistent with the renamed catalog.
+db.prepare("UPDATE orders SET product_name = 'Weekly License' WHERE product_name = 'Weekly Pass'").run();
+db.prepare("UPDATE orders SET product_name = 'Monthly License' WHERE product_name = 'Monthly Pass'").run();
 
 function mapProduct(row) {
   if (!row) return null;
