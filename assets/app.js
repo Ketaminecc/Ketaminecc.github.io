@@ -41,7 +41,21 @@
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(options.body);
     }
-    const res = await fetch(apiUrl(path), opts);
+    let res;
+    try {
+      res = await fetch(apiUrl(path), opts);
+    } catch (err) {
+      /* A tunnel rotation can invalidate the hostname mid-session. Refresh it
+         and retry safe reads once; never retry a POST (checkout must not run twice). */
+      const method = String(opts.method || 'GET').toUpperCase();
+      const before = apiBase();
+      const refreshed = typeof window.KET_REFRESH_BASE === 'function' ? await window.KET_REFRESH_BASE() : false;
+      if ((method === 'GET' || method === 'HEAD') && refreshed && apiBase() !== before) {
+        res = await fetch(apiUrl(path), opts);
+      } else {
+        throw err;
+      }
+    }
     let data = null;
     try {
       data = await res.json();

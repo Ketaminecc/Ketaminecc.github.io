@@ -8,6 +8,22 @@
 
   const TUNNEL_API = 'https://84746ed8e1ddc7.app.lhr.life';
 
+  /* Ask Pages for the current tunnel. The JSON is fetched with a unique query
+     and no-store so a rotated hostname is not hidden by a cached config.js. */
+  window.KET_REFRESH_BASE = async function refreshBase() {
+    try {
+      const res = await fetch(`/assets/api-base.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      const api = data && typeof data.api === 'string' ? data.api.replace(/\/+$/, '') : '';
+      if (!/^https?:\/\//i.test(api)) return false;
+      window.KET_API_BASE = api;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const host = window.location.hostname;
   const local = host === 'localhost' || host === '127.0.0.1' || host === '' || host.endsWith('.local');
   if (local) {
@@ -16,15 +32,5 @@
   }
 
   window.KET_API_BASE = TUNNEL_API;
-
-  /* The CDN caches this file, so revalidate the tunnel from a JSON file with
-     no-store. This keeps a rotated hostname from being masked by a stale
-     cached config.js. */
-  window.KET_API_READY = fetch(`/assets/api-base.json?t=${Date.now()}`, { cache: 'no-store' })
-    .then((res) => (res.ok ? res.json() : null))
-    .then((data) => {
-      const api = data && typeof data.api === 'string' ? data.api.replace(/\/+$/, '') : '';
-      if (/^https?:\/\//i.test(api)) window.KET_API_BASE = api;
-    })
-    .catch(() => null);
+  window.KET_API_READY = window.KET_REFRESH_BASE();
 })();
