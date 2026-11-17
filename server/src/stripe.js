@@ -1,23 +1,62 @@
 'use strict';
 
 const config = require('./config');
+const { getSetting } = require('./db');
+const { decryptText } = require('./security');
 
 let stripeClient = null;
+let cachedSecret = null;
+
+/* Keys can come from server/.env (preferred for a single-owner install) or from
+   the admin console, where they are stored encrypted with ENC_KEY. */
+function settingSecret(key) {
+  const raw = getSetting(key, '');
+  if (!raw) return '';
+  const value = String(raw);
+  if (!value.startsWith('enc:')) return value.trim();
+  try {
+    return String(decryptText(value.slice(4)) || '').trim();
+  } catch (err) {
+    console.error(`[stripe] could not decrypt ${key}:`, err.message);
+    return '';
+  }
+}
+
+function secretKey() {
+  return String(config.stripeSecretKey || settingSecret('stripe_secret_key') || '').trim();
+}
+
+function webhookSecret() {
+  return String(config.stripeWebhookSecret || settingSecret('stripe_webhook_secret') || '').trim();
+}
+
+function stripeSource() {
+  if (config.stripeSecretKey) return 'env';
+  if (settingSecret('stripe_secret_key')) return 'database';
+  return 'none';
+}
+
+function resetStripeClient() {
+  stripeClient = null;
+  cachedSecret = null;
+}
 
 function stripe() {
-  if (!config.stripeSecretKey) return null;
-  if (!stripeClient) {
+  const key = secretKey();
+  if (!key) return null;
+  if (!stripeClient || cachedSecret !== key) {
     // eslint-disable-next-line global-require
-    stripeClient = require('stripe')(config.stripeSecretKey, {
+    stripeClient = require('stripe')(key, {
       maxNetworkRetries: 2,
       timeout: 20_000,
     });
+    cachedSecret = key;
   }
   return stripeClient;
 }
 
 function stripeConfigured() {
-  return Boolean(config.stripeSecretKey);
+  return Boolean(secretKey());
 }
 
 async function createCheckoutSession({ order, product, user }) {
@@ -63,6 +102,12 @@ async function createCheckoutSession({ order, product, user }) {
   });
 }
 
+async function retrieveCheckoutSession(sessionId) {
+  const client = stripe();
+  if (!client) throw new Error('Stripe is not configured');
+  return client.checkout.sessions.retrieve(String(sessionId));
+}
+
 async function refundPaymentIntent(paymentIntentId, amountCents) {
   const client = stripe();
   if (!client) throw new Error('Stripe is not configured');
@@ -93,7 +138,11 @@ function publicPaymentMode() {
 module.exports = {
   stripe,
   stripeConfigured,
+  stripeSource,
+  webhookSecret,
+  resetStripeClient,
   createCheckoutSession,
+  retrieveCheckoutSession,
   refundPaymentIntent,
   verifyStripeKey,
   publicPaymentMode,

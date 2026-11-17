@@ -7,7 +7,7 @@
   const FALLBACK_PRODUCTS = [
     {
       slug: 'weekly',
-      name: 'Weekly Pass',
+      name: 'Weekly License',
       tagline: 'Short cycle access, delivered instantly.',
       priceCents: 599,
       currency: 'usd',
@@ -17,7 +17,7 @@
     },
     {
       slug: 'monthly',
-      name: 'Monthly Pass',
+      name: 'Monthly License',
       tagline: 'The working plan for daily use.',
       priceCents: 1599,
       currency: 'usd',
@@ -60,6 +60,13 @@
     const features = (product.features || [])
       .map((feature) => `<li>${window.KET.escape(feature)}</li>`)
       .join('');
+    const stock = typeof product.stock === 'number' ? product.stock : null;
+    const stockLine =
+      stock === null
+        ? ''
+        : `<div class="plan-stock ${stock > 0 ? 'available' : 'empty'}"><span class="stock-dot" aria-hidden="true"></span>${
+            stock > 0 ? `${stock} in stock` : 'Made to order'
+          }</div>`;
     return `
       <article class="product-card reveal ${featured ? 'featured' : ''}">
         <div class="plan-top">
@@ -71,6 +78,7 @@
           <span class="amount">${window.KET.money(product.priceCents, product.currency)}</span>
           <span class="currency">USD</span>
         </div>
+        ${stockLine}
         <ul class="plan-features">${features}</ul>
         <a class="btn ${featured ? 'btn-primary' : 'btn-ghost'} btn-block" href="/checkout.html?product=${encodeURIComponent(product.slug)}">
           Purchase <span class="arrow" aria-hidden="true">→</span>

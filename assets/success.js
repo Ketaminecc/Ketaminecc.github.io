@@ -42,7 +42,9 @@
   async function poll() {
     attempts += 1;
     try {
-      const data = await window.KET.api(`/api/orders/${encodeURIComponent(orderNumber)}`);
+      const base = `/api/orders/${encodeURIComponent(orderNumber)}`;
+      const sync = attempts % 2 === 1;
+      const data = await window.KET.api(sync ? `${base}/sync` : base, sync ? { method: 'POST', body: {} } : {});
       const order = data.order;
       if (order.status === 'paid' && order.license && order.license.key) {
         deliver(order);

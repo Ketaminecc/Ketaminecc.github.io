@@ -237,7 +237,7 @@ GET /api/license/validate?key=KET-XXXXX-XXXXX-XXXXX-XXXXX
 {
   "valid": true,
   "status": "active",
-  "product": "Monthly Pass",
+  "product": "Monthly License",
   "issuedAt": 1794937500000,
   "expiresAt": 1797530400000,
   "order": "KT-261117-9F4K2",

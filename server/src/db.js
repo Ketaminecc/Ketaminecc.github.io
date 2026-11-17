@@ -181,7 +181,7 @@ const seedProducts = [
   {
     id: 'prd_weekly',
     slug: 'weekly',
-    name: 'Weekly Pass',
+    name: 'Weekly License',
     tagline: 'Short cycle access, delivered instantly.',
     price_cents: 599,
     duration_days: 7,
@@ -197,7 +197,7 @@ const seedProducts = [
   {
     id: 'prd_monthly',
     slug: 'monthly',
-    name: 'Monthly Pass',
+    name: 'Monthly License',
     tagline: 'The working plan for daily use.',
     price_cents: 1599,
     duration_days: 30,
@@ -254,6 +254,10 @@ if (db.prepare('SELECT COUNT(*) AS c FROM products').get().c === 0) {
   }
 }
 
+// Rename the original "Pass" products in place (idempotent).
+db.prepare("UPDATE products SET name = 'Weekly License' WHERE slug = 'weekly' AND name = 'Weekly Pass'").run();
+db.prepare("UPDATE products SET name = 'Monthly License' WHERE slug = 'monthly' AND name = 'Monthly Pass'").run();
+
 function mapProduct(row) {
   if (!row) return null;
   let features = [];
@@ -285,6 +289,15 @@ function listProducts({ includeInactive = false } = {}) {
     ? 'SELECT * FROM products ORDER BY sort ASC, price_cents ASC'
     : 'SELECT * FROM products WHERE active = 1 ORDER BY sort ASC, price_cents ASC';
   return db.prepare(sql).all().map(mapProduct);
+}
+
+function stockCounts() {
+  const rows = db
+    .prepare("SELECT product_id, COUNT(*) AS c FROM licenses WHERE status = 'stock' AND product_id IS NOT NULL GROUP BY product_id")
+    .all();
+  const counts = Object.create(null);
+  for (const row of rows) counts[row.product_id] = Number(row.c) || 0;
+  return counts;
 }
 
 function getProduct(idOrSlug) {
@@ -323,6 +336,7 @@ module.exports = {
   setSetting,
   listProducts,
   getProduct,
+  stockCounts,
   audit,
   isBlacklisted,
 };

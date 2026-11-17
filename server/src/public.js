@@ -2,7 +2,7 @@
 
 const express = require('express');
 const config = require('./config');
-const { db, getProduct, listProducts, getSetting, isBlacklisted, audit } = require('./db');
+const { db, getProduct, listProducts, getSetting, isBlacklisted, audit, stockCounts } = require('./db');
 const {
   normalizeEmail,
   validEmail,
@@ -25,7 +25,7 @@ const {
   licenseForOrder,
   licenseStatus,
 } = require('./orders');
-const { createCheckoutSession, publicPaymentMode, stripeConfigured } = require('./stripe');
+const { createCheckoutSession, retrieveCheckoutSession, publicPaymentMode, stripeConfigured } = require('./stripe');
 
 const router = express.Router();
 
@@ -45,7 +45,7 @@ function claimEmailLicenses(user) {
   );
 }
 
-function publicProduct(p) {
+function publicProduct(p, stock = 0) {
   return {
     id: p.id,
     slug: p.slug,
@@ -57,6 +57,7 @@ function publicProduct(p) {
     features: p.features,
     badge: p.badge,
     note: p.note,
+    stock: Number(stock) || 0,
   };
 }
 
@@ -78,7 +79,8 @@ router.get('/health', (_req, res) => {
 });
 
 router.get('/products', (_req, res) => {
-  res.json({ products: listProducts().map(publicProduct) });
+  const counts = stockCounts();
+  res.json({ products: listProducts().map((p) => publicProduct(p, counts[p.id] || 0)) });
 });
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -229,6 +231,38 @@ router.get('/orders/:number', requireUser, (req, res) => {
   if (!order || order.user_id !== req.user.id) return res.status(404).json({ error: 'Order not found.' });
   res.json({ order: serializeOrderForUser(order) });
 });
+
+/* Reconcile a pending Stripe order without waiting for a webhook. The success
+   page calls this so a rotated tunnel or a missed webhook cannot strand a paid
+   order. */
+router.post(
+  '/orders/:number/sync',
+  requireUser,
+  rateLimit({ windowMs: 60_000, max: 40, key: 'order-sync' }),
+  async (req, res) => {
+    let order = getOrderByNumber(req.params.number);
+    if (!order || order.user_id !== req.user.id) return res.status(404).json({ error: 'Order not found.' });
+
+    if (order.status === 'pending' && order.stripe_session_id && stripeConfigured()) {
+      try {
+        const session = await retrieveCheckoutSession(order.stripe_session_id);
+        const paymentIntent =
+          typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+        if (session.payment_status === 'paid') {
+          await fulfillOrder(order, { paymentIntent, sessionId: session.id, source: 'stripe-sync' });
+          order = getOrderByNumber(order.number);
+        } else if (session.status === 'expired') {
+          db.prepare("UPDATE orders SET status = 'expired' WHERE id = ? AND status = 'pending'").run(order.id);
+          order = getOrderByNumber(order.number);
+        }
+      } catch (err) {
+        console.error('[stripe] order sync failed:', err.message);
+      }
+    }
+
+    return res.json({ order: serializeOrderForUser(order) });
+  }
+);
 
 // ── Public license validation (for your software client) ─────────────────────
 

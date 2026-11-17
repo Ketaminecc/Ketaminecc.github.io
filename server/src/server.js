@@ -6,7 +6,7 @@ const config = require('./config');
 const { db } = require('./db');
 const { getOrderBySession, getOrderById, fulfillOrder } = require('./orders');
 const { originGuard, cors } = require('./security');
-const { stripe, stripeConfigured } = require('./stripe');
+const { stripe, stripeConfigured, webhookSecret, retrieveCheckoutSession } = require('./stripe');
 const { getWebhookUrl, isValidWebhook } = require('./discord');
 
 const app = express();
@@ -41,16 +41,13 @@ app.use((req, res, next) => {
 // ── Stripe webhook (raw body — must be registered before JSON parsing) ───────
 
 app.post('/api/webhook/stripe', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
-  if (!stripeConfigured() || !config.stripeWebhookSecret) {
+  const signingSecret = webhookSecret();
+  if (!stripeConfigured() || !signingSecret) {
     return res.status(503).send('Stripe webhook is not configured');
   }
   let event;
   try {
-    event = stripe().webhooks.constructEvent(
-      req.body,
-      req.headers['stripe-signature'],
-      config.stripeWebhookSecret
-    );
+    event = stripe().webhooks.constructEvent(req.body, req.headers['stripe-signature'], signingSecret);
   } catch (err) {
     console.error('[stripe] webhook signature failed:', err.message);
     return res.status(400).send(`Webhook error: ${err.message}`);
@@ -168,6 +165,43 @@ app.use((err, _req, res, _next) => {
   if (res.headersSent) return;
   res.status(500).json({ error: 'Internal server error' });
 });
+
+// ── Stripe reconciliation (webhook backup) ───────────────────────────────────
+
+async function reconcilePendingOrders() {
+  if (!stripeConfigured()) return;
+  const rows = db
+    .prepare(
+      `SELECT * FROM orders
+        WHERE status = 'pending' AND stripe_session_id IS NOT NULL AND created_at > ?
+        ORDER BY created_at ASC LIMIT 20`
+    )
+    .all(Date.now() - 24 * 60 * 60_000);
+
+  for (const order of rows) {
+    try {
+      const session = await retrieveCheckoutSession(order.stripe_session_id);
+      const paymentIntent =
+        typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+      if (session.payment_status === 'paid') {
+        await fulfillOrder(order, { paymentIntent, sessionId: session.id, source: 'stripe-reconcile' });
+        console.log(`[stripe] reconciled paid order ${order.number}`);
+      } else if (session.status === 'expired') {
+        db.prepare("UPDATE orders SET status = 'expired' WHERE id = ? AND status = 'pending'").run(order.id);
+      }
+    } catch (err) {
+      console.error(`[stripe] reconcile ${order.number} failed:`, err.message);
+    }
+  }
+}
+
+setInterval(() => {
+  reconcilePendingOrders().catch((err) => console.error('[stripe] reconcile loop:', err.message));
+}, 5 * 60_000).unref();
+
+setTimeout(() => {
+  reconcilePendingOrders().catch((err) => console.error('[stripe] reconcile boot:', err.message));
+}, 15_000).unref();
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 

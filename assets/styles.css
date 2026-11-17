@@ -515,13 +515,27 @@ h3 {
   padding-left: 4px;
 }
 
+.brand-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 34px;
+  filter: drop-shadow(0 6px 16px rgba(229, 72, 77, 0.22));
+}
+
 .brand .santa-hat {
   position: absolute;
-  left: -9px;
-  top: -24px;
-  width: 38px;
+  left: -10px;
+  top: -15px;
+  width: 26px;
   height: auto;
-  transform: rotate(-6deg);
+  transform: rotate(-7deg);
   transform-origin: 50% 90%;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5));
   pointer-events: none;
@@ -667,7 +681,7 @@ h3 {
 
 .simple-hero {
   text-align: center;
-  padding: clamp(2.8rem, 8vw, 5.2rem) 0 clamp(1.6rem, 4vw, 2.6rem);
+  padding-block: clamp(2.8rem, 8vw, 5.2rem) clamp(1.6rem, 4vw, 2.6rem);
 }
 
 .simple-hero h1 {
@@ -694,7 +708,7 @@ h3 {
 }
 
 .simple-section {
-  padding: clamp(1.6rem, 4vw, 2.6rem) 0;
+  padding-block: clamp(1.6rem, 4vw, 2.6rem);
 }
 
 .simple-section-head {
@@ -1212,6 +1226,48 @@ h3 {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+
+.plan-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  width: fit-content;
+  margin-top: 0.6rem;
+  padding: 0.24rem 0.62rem;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.plan-stock .stock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.plan-stock.available {
+  color: var(--ok);
+  border-color: rgba(70, 211, 154, 0.3);
+  background: var(--ok-ghost);
+}
+
+.plan-stock.empty {
+  color: var(--warn);
+  border-color: rgba(240, 180, 41, 0.28);
+  background: var(--warn-ghost);
+}
+
+.plan-stock.empty .stock-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
 }
 
 .plan-note {

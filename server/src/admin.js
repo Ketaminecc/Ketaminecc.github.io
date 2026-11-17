@@ -24,7 +24,14 @@ const {
   issueStockKey,
   licenseStatus,
 } = require('./orders');
-const { refundPaymentIntent, stripeConfigured, verifyStripeKey } = require('./stripe');
+const {
+  refundPaymentIntent,
+  stripeConfigured,
+  stripeSource,
+  webhookSecret,
+  resetStripeClient,
+  verifyStripeKey,
+} = require('./stripe');
 const { sendTestLog, getWebhookUrl, isValidWebhook } = require('./discord');
 
 const router = express.Router();
@@ -520,13 +527,33 @@ router.get('/settings', async (_req, res) => {
     webhookConfigured: Boolean(webhook),
     webhookMasked: webhook ? `${webhook.slice(0, 42)}…${webhook.slice(-6)}` : null,
     stripeConfigured: stripeConfigured(),
+    stripeSource: stripeSource(),
+    stripeWebhookConfigured: Boolean(webhookSecret()),
+    stripeWebhookUrl: `${config.baseUrl}/api/webhook/stripe`,
     demoMode: config.demoMode,
     botSecretConfigured: Boolean(config.botSecret),
   });
 });
 
 router.put('/settings', (req, res) => {
-  const { brand, supportEmail, discordInvite, webhookUrl } = req.body || {};
+  const { brand, supportEmail, discordInvite, webhookUrl, stripeSecretKey, stripeWebhookSecret, clearStripe } =
+    req.body || {};
+
+  let nextStripeKey;
+  if (stripeSecretKey !== undefined) {
+    nextStripeKey = String(stripeSecretKey).trim();
+    if (nextStripeKey && !/^(sk|rk)_(live|test)_[A-Za-z0-9_]+$/.test(nextStripeKey)) {
+      return res.status(400).json({ error: 'Enter a valid Stripe secret key (sk_live_… or sk_test_…).' });
+    }
+  }
+  let nextWebhookSecret;
+  if (stripeWebhookSecret !== undefined) {
+    nextWebhookSecret = String(stripeWebhookSecret).trim();
+    if (nextWebhookSecret && !/^whsec_[A-Za-z0-9_]+$/.test(nextWebhookSecret)) {
+      return res.status(400).json({ error: 'Enter a valid Stripe webhook signing secret (whsec_…).' });
+    }
+  }
+
   if (brand !== undefined) setSetting('brand', String(brand).slice(0, 60));
   if (supportEmail !== undefined) {
     const email = normalizeEmail(supportEmail);
@@ -539,11 +566,36 @@ router.put('/settings', (req, res) => {
     if (url && !isValidWebhook(url)) return res.status(400).json({ error: 'Enter a valid Discord webhook URL.' });
     setSetting('discord_webhook_url', url ? `enc:${encryptText(url)}` : '');
   }
+  if (nextStripeKey !== undefined) {
+    setSetting('stripe_secret_key', nextStripeKey ? `enc:${encryptText(nextStripeKey)}` : '');
+    resetStripeClient();
+  }
+  if (nextWebhookSecret !== undefined) {
+    setSetting('stripe_webhook_secret', nextWebhookSecret ? `enc:${encryptText(nextWebhookSecret)}` : '');
+  }
+  if (clearStripe === true) {
+    setSetting('stripe_secret_key', '');
+    setSetting('stripe_webhook_secret', '');
+    resetStripeClient();
+  }
   audit('admin', 'settings.update', null, {
     webhookChanged: webhookUrl !== undefined,
     brand: brand !== undefined ? String(brand) : undefined,
+    stripeKeyChanged: nextStripeKey !== undefined || clearStripe === true,
+    stripeWebhookChanged: nextWebhookSecret !== undefined || clearStripe === true,
   });
   res.json({ ok: true });
+});
+
+router.post('/settings/test-stripe', async (_req, res) => {
+  const result = await verifyStripeKey();
+  if (!result.ok) {
+    return res.status(502).json({
+      error: result.reason === 'not_configured' ? 'Add a Stripe secret key first.' : 'Stripe rejected the key.',
+      detail: result,
+    });
+  }
+  res.json(result);
 });
 
 router.post('/settings/test-webhook', async (_req, res) => {

@@ -630,6 +630,16 @@
     $('#stripe-state').textContent = data.stripeConfigured ? 'Connected' : 'Not configured';
     $('#payment-state').textContent = data.stripeConfigured ? 'Live Stripe' : data.demoMode ? 'Demo mode' : 'Disabled';
     $('#bot-state').textContent = data.botSecretConfigured ? 'Secret configured' : 'Missing secret';
+
+    const stripeBanner = $('#stripe-banner');
+    stripeBanner.className = data.stripeConfigured ? 'banner info' : 'banner warn';
+    const sourceLabel = data.stripeSource === 'env' ? 'server/.env' : 'admin console';
+    stripeBanner.textContent = data.stripeConfigured
+      ? `Connected · key from ${sourceLabel}${data.stripeWebhookConfigured ? ' · webhook signing enabled' : ' · webhook secret missing'}`
+      : `Stripe is not configured. Checkout uses ${data.demoMode ? 'demo mode' : 'disabled mode'}.`;
+    $('#setting-stripe-key').value = '';
+    $('#setting-stripe-webhook').value = '';
+    $('#setting-stripe-endpoint').value = data.stripeWebhookUrl || '';
   }
 
   async function saveSettings(event) {
@@ -678,6 +688,60 @@
       await loadSettings();
     } catch (err) {
       if (err.status !== 401) window.KET.toast(err.message || 'Could not remove webhook.', 'error');
+    }
+  }
+
+  async function saveStripe(event) {
+    event.preventDefault();
+    clearError('stripe-error');
+    const key = $('#setting-stripe-key').value.trim();
+    const webhook = $('#setting-stripe-webhook').value.trim();
+    if (!key && !webhook) return showError('stripe-error', 'Enter a secret key or a webhook signing secret.');
+    const body = {};
+    if (key) body.stripeSecretKey = key;
+    if (webhook) body.stripeWebhookSecret = webhook;
+    const btn = $('#stripe-form button[type="submit"]');
+    btn.disabled = true;
+    try {
+      await adminApi('/api/admin/settings', { method: 'PUT', body });
+      window.KET.toast('Stripe keys saved.', 'ok');
+      await loadSettings();
+    } catch (err) {
+      if (err.status !== 401) showError('stripe-error', err.message || 'Could not save Stripe keys.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function testStripe() {
+    clearError('stripe-error');
+    const btn = $('#test-stripe');
+    btn.disabled = true;
+    btn.textContent = 'Testing…';
+    try {
+      const data = await adminApi('/api/admin/settings/test-stripe', { method: 'POST', body: {} });
+      window.KET.toast(
+        `Stripe OK · ${data.account}${data.chargesEnabled ? '' : ' · charges disabled'}`,
+        data.chargesEnabled ? 'ok' : 'error'
+      );
+      await loadSettings();
+    } catch (err) {
+      if (err.status !== 401) showError('stripe-error', err.message || 'Stripe test failed.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Test connection';
+    }
+  }
+
+  async function removeStripe() {
+    if (!window.confirm('Remove the stored Stripe keys? Checkout falls back to demo mode.')) return;
+    clearError('stripe-error');
+    try {
+      await adminApi('/api/admin/settings', { method: 'PUT', body: { clearStripe: true } });
+      window.KET.toast('Stripe keys removed.', 'ok');
+      await loadSettings();
+    } catch (err) {
+      if (err.status !== 401) showError('stripe-error', err.message || 'Could not remove Stripe keys.');
     }
   }
 
@@ -783,6 +847,9 @@
     $('#webhook-form').addEventListener('submit', saveWebhook);
     $('#test-webhook').addEventListener('click', testWebhook);
     $('#remove-webhook').addEventListener('click', removeWebhook);
+    $('#stripe-form').addEventListener('submit', saveStripe);
+    $('#test-stripe').addEventListener('click', testStripe);
+    $('#remove-stripe').addEventListener('click', removeStripe);
 
     $('#copy-all-keys').addEventListener('click', async () => {
       const text = state.generatedKeys.map((key) => key.key).join('\n');
