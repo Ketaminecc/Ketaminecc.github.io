@@ -65,22 +65,32 @@ Orders cannot be fulfilled without the authenticated account that created them.
 ## 3. Stripe setup (live)
 
 1. In the Stripe Dashboard, complete business activation.
-2. Copy the **secret key** (`sk_live_…`) into `server/.env` as `STRIPE_SECRET_KEY`.
-3. Add a webhook endpoint:
-   - URL: `https://api.ketaminecc.website/api/webhook/stripe`
+2. Add the **secret key** in either place:
+   - **Admin → Settings → Stripe payments** (stored encrypted in SQLite), or
+   - `server/.env` as `STRIPE_SECRET_KEY` (wins over the admin value).
+3. Optional webhook:
+   - URL: the value shown in **Admin → Settings → Stripe payments** (`/api/webhook/stripe`),
+     or `<PUBLIC_BASE_URL>/api/webhook/stripe`
    - Events:
      - `checkout.session.completed`
      - `checkout.session.async_payment_succeeded`
      - `checkout.session.expired`
      - `charge.refunded`
-4. Copy the endpoint **signing secret** (`whsec_…`) into `STRIPE_WEBHOOK_SECRET`.
+4. Paste the endpoint **signing secret** (`whsec_…`) in the same admin card or as
+   `STRIPE_WEBHOOK_SECRET` in `.env`.
 5. Set `DEMO_MODE=false`, `NODE_ENV=production`,
    `PUBLIC_BASE_URL=https://api.ketaminecc.website`, `PUBLIC_SITE_URL=https://ketaminecc.website`.
 6. Restart/redeploy the server.
 
-Prices are sent to Stripe dynamically from the admin-managed product records, so editing a
+A Stripe key always wins over `DEMO_MODE`, so checkout opens real Stripe as soon as the key is
+saved. Prices are sent to Stripe dynamically from the admin-managed product records, so editing a
 plan in the dashboard changes what Stripe charges on the next checkout. No Stripe product IDs
 need to be maintained.
+
+With the current PC + localhost.run setup the API hostname rotates, so a fixed webhook URL is not
+reliable. Fulfillment does not depend on it: the success page calls
+`POST /api/orders/:number/sync`, and the server reconciles pending sessions every 5 minutes.
+Configure the webhook only if the API moves to a stable hostname.
 
 Test cards: `4242 4242 4242 4242`, any future expiry, any CVC.
 
@@ -219,8 +229,9 @@ The admin console can also reveal a code under **Settings → Verification codes
 - **Blacklist** — email, license key, IP, or Discord ID; blocked at checkout/registration and
   in the license validation endpoint.
 - **Audit log** — admin logins, refunds, key generation, revocations, setting changes.
-- **Settings** — brand, support email, Discord invite, purchase webhook, test webhook, code
-  reveal, Stripe/bot status.
+- **Settings** — brand, support email, Discord invite, purchase webhook, test webhook, Stripe
+  secret key + webhook signing secret (encrypted at rest), Stripe connection test, code reveal,
+  bot status.
 
 Refunds revoke the order's license automatically. Blacklisting a user revokes their active
 licenses. Every license check reflects the change immediately.
