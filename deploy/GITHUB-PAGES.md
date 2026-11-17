@@ -35,8 +35,10 @@ Never commit real secrets.
 Repository → **Settings → Pages**:
 
 1. Source: **GitHub Actions**.
-2. Custom domain: `ketaminecc.website` → Save.
-3. Wait for DNS, then enable **Enforce HTTPS**.
+2. Custom domain: `www.ketaminecc.website` → Save. The apex `ketaminecc.website`
+   redirects to `www`.
+3. Wait for the DNS check to pass, then enable **Enforce HTTPS**. The certificate can
+   take a few minutes to issue; HTTPS fails until it does.
 
 Every push to `main` runs `.github/workflows/pages.yml`, which publishes only the
 static files (`*.html`, `assets/`, `CNAME`, `.nojekyll`, `robots.txt`).
@@ -45,7 +47,9 @@ static files (`*.html`, `assets/`, `CNAME`, `.nojekyll`, `robots.txt`).
 
 ## 3. GoDaddy DNS
 
-Domain → **DNS**. Remove the GoDaddy parked-page `A` record and any forwarding.
+Domain → **DNS**. Delete every GoDaddy parked-page `A` record (typically
+`3.33.130.190` and `15.197.148.33`) and any domain forwarding. Only the GitHub
+records below should remain for `@`.
 
 Add for GitHub Pages:
 
@@ -59,7 +63,7 @@ Add for GitHub Pages:
 | AAAA  | @    | 2606:50c0:8001::153      |
 | AAAA  | @    | 2606:50c0:8002::153      |
 | AAAA  | @    | 2606:50c0:8003::153      |
-| CNAME | www  | `<USER>.github.io`       |
+| CNAME | www  | `Ketaminecc.github.io`   |
 | CNAME | api  | `<SERVICE>.onrender.com` |
 
 `api` is added after Render gives you the service hostname (step 4).
