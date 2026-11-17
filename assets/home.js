@@ -65,7 +65,7 @@
       stock === null
         ? ''
         : `<div class="plan-stock ${stock > 0 ? 'available' : 'empty'}"><span class="stock-dot" aria-hidden="true"></span>${
-            stock > 0 ? `${stock} in stock` : 'Made to order'
+            stock > 0 ? `${stock} in stock` : '0 in stock · made to order'
           }</div>`;
     return `
       <article class="product-card reveal ${featured ? 'featured' : ''}">
