@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050609">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.ketaminecc.site; base-uri 'self'; form-action 'self' https://checkout.stripe.com">
+  <title>Ketamine.cc — Licenses</title>
+  <meta name="description" content="Ketamine.cc license store. Encrypted keys, instant delivery.">
+  <meta property="og:title" content="Ketamine.cc — Licenses">
+  <meta property="og:description" content="Encrypted licenses, delivered instantly.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="page-home">
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/" aria-label="Ketamine.cc">
+        <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="54" height="48">
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+      </a>
+
+      <nav class="main-nav" id="main-nav" aria-label="Primary">
+        <a href="#products">Products</a>
+        <a href="#questions">Questions</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-ghost btn-small" data-auth="guest" href="/login.html">Sign in</a>
+        <a class="btn btn-primary btn-small" data-auth="user" hidden href="/dashboard.html">Dashboard</a>
+        <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="main-nav"><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="simple-hero container">
+      <img class="hero-hat" src="/assets/santa-hat.png" alt="">
+      <h1>Ketamine<span>.cc</span></h1>
+      <p>Encrypted licenses, delivered instantly.</p>
+    </section>
+
+    <section class="container simple-section" id="products">
+      <div class="simple-section-head">
+        <h2>Products</h2>
+        <span>Instant delivery</span>
+      </div>
+      <div class="product-grid" id="product-grid">
+        <div class="product-skeleton"></div>
+        <div class="product-skeleton"></div>
+        <div class="product-skeleton"></div>
+      </div>
+      <noscript><p class="lead" style="margin-top:1rem">Enable JavaScript to load products.</p></noscript>
+    </section>
+
+    <section class="container simple-section" id="questions">
+      <div class="simple-section-head">
+        <h2>Questions</h2>
+        <span>Support</span>
+      </div>
+      <div class="question-grid">
+        <article class="question-card">
+          <h3>Where is my key?</h3>
+          <p>Shown right after checkout and saved to your dashboard.</p>
+        </article>
+        <article class="question-card">
+          <h3>Refunds?</h3>
+          <p>Licensing errors are refunded. Refunded keys are revoked.</p>
+        </article>
+        <article class="question-card">
+          <h3>Need help?</h3>
+          <p><a class="link" href="mailto:support@ketaminecc.site" data-support-email>support@ketaminecc.site</a> or <a class="link" href="#" data-discord-link>Discord</a>.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container simple-footer">
+    <span>© <span data-year>2026</span> Ketamine.cc</span>
+    <span><a href="/login.html">Sign in</a> · <a href="/dashboard.html">Keys</a> · <a href="/account.html">Account</a> · <a href="/admin.html">Admin</a></span>
+  </footer>
+
+  <script src="/assets/config.js"></script>
+  <script src="/assets/app.js"></script>
+  <script src="/assets/home.js"></script>
+</body>
+</html>

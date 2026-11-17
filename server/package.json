@@ -1,0 +1,20 @@
+{
+  "name": "ketamine-licensing",
+  "version": "1.0.0",
+  "description": "Ketamine.cc storefront, Stripe licensing, admin console and Discord audit bridge",
+  "main": "src/server.js",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "check": "node --check src/server.js && node --check src/admin.js && node --check src/public.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "stripe": "^23.1.0"
+  }
+}

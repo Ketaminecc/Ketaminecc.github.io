@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: ketamine-api
+    runtime: node
+    plan: starter
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: node src/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: ketamine-data
+      mountPath: /opt/render/project/src/server/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_SITE_URL
+        value: https://ketaminecc.site
+      - key: PUBLIC_BASE_URL
+        value: https://api.ketaminecc.site
+      - key: CORS_ORIGINS
+        value: https://ketaminecc.site,https://www.ketaminecc.site
+      - key: COOKIE_SAME_SITE
+        value: lax
+      - key: DEMO_MODE
+        value: "false"
+      - key: SUPPORT_EMAIL
+        value: support@ketaminecc.site
+      - key: SESSION_SECRET
+        sync: false
+      - key: ENC_KEY
+        sync: false
+      - key: ADMIN_SECRET
+        sync: false
+      - key: BOT_SHARED_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: DISCORD_PURCHASE_WEBHOOK_URL
+        sync: false

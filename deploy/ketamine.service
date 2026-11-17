@@ -1,0 +1,22 @@
+# /etc/systemd/system/ketamine.service
+# Copy the whole project to /srv/ketamine first (see deploy/SETUP.md).
+
+[Unit]
+Description=Ketamine.cc licensing
+After=network.target
+
+[Service]
+Type=simple
+User=ketamine
+Group=ketamine
+WorkingDirectory=/srv/ketamine/server
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/ketamine/server/data
+
+[Install]
+WantedBy=multi-user.target

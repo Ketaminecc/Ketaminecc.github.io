@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page not found — Ketamine.cc</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="page-app app-page">
+  <main class="app-main">
+    <div class="app-wrap">
+      <div class="page-head" style="text-align:center">
+        <h1>404.</h1>
+        <p>That page does not exist.</p>
+        <p style="margin-top:1.2rem"><a class="btn btn-primary" href="/">Back to store</a></p>
+      </div>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var map = {
+        '/login': '/login.html',
+        '/dashboard': '/dashboard.html',
+        '/account': '/account.html',
+        '/admin': '/admin.html',
+        '/checkout': '/checkout.html',
+        '/checkout-success': '/checkout-success.html',
+        '/index': '/index.html'
+      };
+      var path = location.pathname.replace(/\/+$/, '') || '/';
+      if (map[path]) location.replace(map[path] + location.search + location.hash);
+    })();
+  </script>
+</body>
+</html>

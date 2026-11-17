@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050609">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.ketaminecc.site; base-uri 'self'; form-action 'self' https://checkout.stripe.com">
+  <title>Admin console — Ketamine.cc</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="page-app" data-snow="off">
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <!-- Login -->
+  <section class="admin-login" id="admin-login">
+    <div class="auth-card">
+      <a class="brand" href="/" style="margin-bottom:1.4rem">
+        <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="42" height="38">
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+        <span class="brand-meta">ADMIN</span>
+      </a>
+      <h2>Owner console.</h2>
+      <p class="sub">Admin key required. Keys, orders, refunds, and product controls.</p>
+      <div class="form-error" id="admin-login-error" role="alert"></div>
+      <form id="admin-login-form">
+        <div class="field">
+          <label for="admin-secret">Admin secret</label>
+          <input class="input" id="admin-secret" type="password" autocomplete="current-password" required placeholder="CN-TT-…">
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="admin-login-submit">Unlock console</button>
+      </form>
+      <p class="form-note" style="margin-top:1rem">
+        The secret is verified server-side and never stored in the browser. Sessions expire after 8 hours.
+      </p>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <div class="admin-shell" id="admin-shell" hidden>
+    <aside class="admin-side">
+      <a class="brand" href="/">
+        <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="42" height="38">
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+        <span class="brand-meta">ADMIN</span>
+      </a>
+
+      <nav class="admin-nav" aria-label="Admin sections">
+        <button type="button" class="active" data-view="overview">Overview <span class="n">01</span></button>
+        <button type="button" data-view="orders">Orders <span class="n">02</span></button>
+        <button type="button" data-view="licenses">Licenses <span class="n">03</span></button>
+        <button type="button" data-view="products">Products <span class="n">04</span></button>
+        <button type="button" data-view="customers">Customers <span class="n">05</span></button>
+        <button type="button" data-view="blacklist">Blacklist <span class="n">06</span></button>
+        <button type="button" data-view="audit">Audit log <span class="n">07</span></button>
+        <button type="button" data-view="settings">Settings <span class="n">08</span></button>
+      </nav>
+
+      <div class="side-foot">
+        <span class="who">ADMIN SESSION · 8H</span>
+        <button class="btn btn-subtle btn-small btn-block" type="button" data-admin-logout>Sign out</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <div class="admin-top">
+        <div>
+          <h1 id="admin-title">Overview</h1>
+          <p id="admin-sub">Control plane · encrypted purchase audit</p>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-subtle btn-small" type="button" id="reveal-code-btn">Reveal code</button>
+          <button class="btn btn-ghost btn-small" type="button" id="refresh-btn">Refresh</button>
+        </div>
+      </div>
+
+      <!-- Overview -->
+      <section class="admin-view active" id="view-overview">
+        <div class="admin-stats" id="overview-stats"></div>
+        <div class="admin-card">
+          <div class="panel-head">
+            <h3>Recent orders</h3>
+            <span class="sub">Newest first</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Order</th><th>Customer</th><th>Product</th><th>Amount</th><th>Status</th><th>Created</th><th></th></tr></thead>
+              <tbody id="overview-orders"><tr><td colspan="7" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Orders -->
+      <section class="admin-view" id="view-orders">
+        <div class="admin-toolbar">
+          <input class="input grow" id="order-search" type="search" placeholder="Search order ID, email, or product">
+          <select class="select" id="order-status" style="max-width:190px">
+            <option value="">All statuses</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
+            <option value="refunded">Refunded</option>
+            <option value="expired">Expired</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button class="btn btn-ghost btn-small" type="button" id="orders-refresh">Search</button>
+        </div>
+        <div class="admin-card" style="padding:0">
+          <div class="table-wrap" style="border:0">
+            <table class="data-table">
+              <thead><tr><th>Order</th><th>Customer</th><th>Product</th><th>Amount</th><th>Status</th><th>License</th><th>Created</th><th>Actions</th></tr></thead>
+              <tbody id="orders-body"><tr><td colspan="8" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Licenses -->
+      <section class="admin-view" id="view-licenses">
+        <div class="admin-section-grid">
+          <div class="admin-card" style="padding:0">
+            <div style="padding:1.1rem 1.1rem 0">
+              <div class="admin-toolbar" style="margin-bottom:.6rem">
+                <input class="input grow" id="license-search" type="search" placeholder="Search key, email, or order">
+                <button class="btn btn-ghost btn-small" type="button" id="licenses-refresh">Search</button>
+              </div>
+            </div>
+            <div class="table-wrap" style="border:0;border-top:1px solid var(--line)">
+              <table class="data-table">
+                <thead><tr><th>Key</th><th>Product</th><th>Owner</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead>
+                <tbody id="licenses-body"><tr><td colspan="6" class="table-empty">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="admin-card">
+            <h3>Generate keys</h3>
+            <div class="form-error" id="license-error" role="alert"></div>
+            <form id="license-form">
+              <div class="field">
+                <label for="license-product">Product</label>
+                <select class="select" id="license-product" required></select>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="license-quantity">Quantity</label>
+                  <input class="input" id="license-quantity" type="number" min="1" max="100" value="1" required>
+                </div>
+                <div class="field">
+                  <label for="license-duration">Duration override</label>
+                  <input class="input" id="license-duration" type="text" placeholder="blank = product default">
+                </div>
+              </div>
+              <div class="field">
+                <label for="license-email">Account email</label>
+                <input class="input" id="license-email" type="email" placeholder="customer@example.com" required>
+                <span class="hint">Keys are linked to this account email.</span>
+              </div>
+              <div class="field">
+                <label for="license-note">Note</label>
+                <input class="input" id="license-note" type="text" maxlength="300" placeholder="Support, giveaway, etc.">
+              </div>
+              <button class="btn btn-primary btn-block" type="submit" id="license-submit">Generate licenses</button>
+              <p class="form-note" style="margin-top:.6rem">Duration accepts days, <code class="mono">lifetime</code>, or blank for default.</p>
+            </form>
+            <div id="license-result" hidden>
+              <hr class="hr">
+              <div class="panel-head" style="margin-bottom:.5rem">
+                <h3 style="font-size:.8rem">Generated</h3>
+                <button class="btn btn-subtle btn-small" type="button" id="copy-all-keys">Copy all</button>
+              </div>
+              <div class="generated-keys" id="generated-keys"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Products -->
+      <section class="admin-view" id="view-products">
+        <div class="admin-toolbar">
+          <p class="form-note grow">Changes go live on the storefront immediately. Prices are charged through Stripe at checkout.</p>
+          <button class="btn btn-primary btn-small" type="button" id="new-product">New product</button>
+        </div>
+        <div class="admin-card" style="padding:0">
+          <div class="table-wrap" style="border:0">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Price</th><th>Duration</th><th>Badge</th><th>Active</th><th>Updated</th><th>Actions</th></tr></thead>
+              <tbody id="products-body"><tr><td colspan="7" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Customers -->
+      <section class="admin-view" id="view-customers">
+        <div class="admin-toolbar">
+          <input class="input grow" id="customer-search" type="search" placeholder="Search email or name">
+          <button class="btn btn-ghost btn-small" type="button" id="customers-refresh">Search</button>
+        </div>
+        <div class="admin-card" style="padding:0">
+          <div class="table-wrap" style="border:0">
+            <table class="data-table">
+              <thead><tr><th>Customer</th><th>Orders</th><th>Spend</th><th>Active keys</th><th>Joined</th><th>Last login</th><th>Actions</th></tr></thead>
+              <tbody id="customers-body"><tr><td colspan="7" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Blacklist -->
+      <section class="admin-view" id="view-blacklist">
+        <div class="admin-section-grid">
+          <div class="admin-card" style="padding:0">
+            <div class="table-wrap" style="border:0">
+              <table class="data-table">
+                <thead><tr><th>Kind</th><th>Value</th><th>Reason</th><th>Added</th><th></th></tr></thead>
+                <tbody id="blacklist-body"><tr><td colspan="5" class="table-empty">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>Add restriction</h3>
+            <div class="form-error" id="blacklist-error" role="alert"></div>
+            <form id="blacklist-form">
+              <div class="field">
+                <label for="blacklist-kind">Type</label>
+                <select class="select" id="blacklist-kind">
+                  <option value="email">Email</option>
+                  <option value="key">License key</option>
+                  <option value="ip">IP address</option>
+                  <option value="discord">Discord ID</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="blacklist-value">Value</label>
+                <input class="input" id="blacklist-value" required placeholder="user@example.com or full key">
+              </div>
+              <div class="field">
+                <label for="blacklist-reason">Reason</label>
+                <input class="input" id="blacklist-reason" maxlength="300" placeholder="Chargeback, resale, abuse…">
+              </div>
+              <button class="btn btn-danger btn-block" type="submit" id="blacklist-submit">Add to blacklist</button>
+              <p class="form-note" style="margin-top:.6rem">Emails are blocked at checkout; keys fail validation immediately.</p>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Audit -->
+      <section class="admin-view" id="view-audit">
+        <div class="admin-card" style="padding:0">
+          <div class="table-wrap" style="border:0">
+            <table class="data-table">
+              <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+              <tbody id="audit-body"><tr><td colspan="5" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="admin-view" id="view-settings">
+        <div class="settings-grid">
+          <div class="admin-card">
+            <h3>Storefront</h3>
+            <div class="form-error" id="settings-error" role="alert"></div>
+            <form id="settings-form">
+              <div class="field">
+                <label for="setting-brand">Brand name</label>
+                <input class="input" id="setting-brand" maxlength="60">
+              </div>
+              <div class="field">
+                <label for="setting-support">Support email</label>
+                <input class="input" id="setting-support" type="email">
+              </div>
+              <div class="field">
+                <label for="setting-discord">Discord invite URL</label>
+                <input class="input" id="setting-discord" type="url" placeholder="https://discord.gg/…">
+              </div>
+              <button class="btn btn-primary" type="submit" id="settings-submit">Save storefront</button>
+            </form>
+          </div>
+
+          <div class="admin-card">
+            <h3>Purchase log webhook</h3>
+            <div class="banner info" id="webhook-state">Checking webhook…</div>
+            <div class="form-error" id="webhook-error" role="alert"></div>
+            <form id="webhook-form">
+              <div class="field">
+                <label for="setting-webhook">Discord webhook URL</label>
+                <input class="input" id="setting-webhook" type="password" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
+                <span class="hint">Leave blank to keep the current webhook. Purchase records post here encrypted; only the purchase ID and one-time code are readable.</span>
+              </div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button class="btn btn-primary btn-small" type="submit">Save webhook</button>
+                <button class="btn btn-subtle btn-small" type="button" id="test-webhook">Send test</button>
+                <button class="btn btn-danger btn-small" type="button" id="remove-webhook">Remove</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="admin-card">
+            <h3>Integrations</h3>
+            <div class="summary-line"><span>Stripe</span><span id="stripe-state">—</span></div>
+            <div class="summary-line"><span>Payment mode</span><span id="payment-state">—</span></div>
+            <div class="summary-line"><span>Discord bot bridge</span><span id="bot-state">—</span></div>
+            <div class="summary-line"><span>Encryption</span><span>AES-256-GCM</span></div>
+            <hr class="hr">
+            <p class="form-note">
+              The bot calls <code class="mono">POST /api/internal/reveal</code> with the shared bot secret. Owner-only <code class="mono">/verify</code> marks a code as used and returns the decrypted record once.
+            </p>
+          </div>
+
+          <div class="admin-card">
+            <h3>Verification codes</h3>
+            <p class="form-note" style="margin-bottom:.8rem">Reveal a purchase record with the code posted to Discord. One-time use.</p>
+            <div class="field">
+              <label for="settings-code">Code</label>
+              <input class="input" id="settings-code" placeholder="A7F2-9K3Q" autocomplete="off">
+            </div>
+            <button class="btn btn-ghost btn-small" type="button" id="settings-reveal">Reveal record</button>
+            <pre class="code-block" id="settings-reveal-out" hidden style="margin-top:.8rem"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Product modal -->
+  <div class="modal" id="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card wide">
+      <div class="modal-head">
+        <div>
+          <h2 id="product-modal-title">Edit product</h2>
+          <p>Live storefront content and Stripe pricing.</p>
+        </div>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      <div class="form-error" id="product-error" role="alert"></div>
+      <form id="product-form">
+        <input type="hidden" id="product-id">
+        <div class="field-row">
+          <div class="field">
+            <label for="product-name">Name</label>
+            <input class="input" id="product-name" required maxlength="80">
+          </div>
+          <div class="field">
+            <label for="product-badge">Badge</label>
+            <input class="input" id="product-badge" maxlength="30" placeholder="MOST POPULAR">
+          </div>
+        </div>
+        <div class="field">
+          <label for="product-tagline">Tagline</label>
+          <input class="input" id="product-tagline" maxlength="120">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="product-price">Price (USD)</label>
+            <input class="input" id="product-price" type="number" min="0.5" max="1000" step="0.01" required>
+          </div>
+          <div class="field">
+            <label for="product-duration">Duration (days)</label>
+            <input class="input" id="product-duration" type="number" min="1" max="3650" placeholder="blank = lifetime">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="product-note">Price note</label>
+            <input class="input" id="product-note" maxlength="120" placeholder="≈ €5.44 EUR / £4.54 GBP">
+          </div>
+          <div class="field">
+            <label for="product-sort">Sort order</label>
+            <input class="input" id="product-sort" type="number" min="0" step="1" value="0">
+          </div>
+        </div>
+        <div class="field">
+          <label for="product-features">Features <span class="dim">(one per line)</span></label>
+          <textarea class="textarea" id="product-features" rows="5"></textarea>
+        </div>
+        <div class="field">
+          <label for="product-description">Internal description</label>
+          <textarea class="textarea" id="product-description" rows="2"></textarea>
+        </div>
+        <label class="check" style="margin-bottom:1rem"><input type="checkbox" id="product-active"> Visible on storefront</label>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end">
+          <button class="btn btn-subtle" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit" id="product-submit">Save product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Order modal -->
+  <div class="modal" id="order-modal" role="dialog" aria-modal="true" aria-labelledby="order-modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card wide">
+      <div class="modal-head">
+        <div>
+          <h2 id="order-modal-title">Order detail</h2>
+          <p id="order-modal-sub">Decrypted record</p>
+        </div>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      <div id="order-detail"><div class="table-empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Reveal modal -->
+  <div class="modal" id="reveal-modal" role="dialog" aria-modal="true" aria-labelledby="reveal-modal-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="reveal-modal-title">Reveal encrypted record</h2>
+          <p>Enter the one-time code from Discord.</p>
+        </div>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      <div class="form-error" id="reveal-error" role="alert"></div>
+      <div class="field">
+        <label for="reveal-code">Verification code</label>
+        <input class="input" id="reveal-code" placeholder="A7F2-9K3Q" autocomplete="off">
+      </div>
+      <button class="btn btn-primary btn-block" type="button" id="reveal-submit">Decrypt record</button>
+      <pre class="code-block" id="reveal-output" hidden style="margin-top:.9rem"></pre>
+    </div>
+  </div>
+
+  <script src="/assets/config.js"></script>
+  <script src="/assets/app.js"></script>
+  <script src="/assets/admin.js"></script>
+</body>
+</html>

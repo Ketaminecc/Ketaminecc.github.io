@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050609">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.ketaminecc.site; base-uri 'self'; form-action 'self' https://checkout.stripe.com">
+  <title>Delivery — Ketamine.cc</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="page-app app-page">
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="app-topbar">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="42" height="38">
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="btn btn-ghost btn-small" href="/dashboard.html">Keys</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="app-wrap">
+      <div class="success-wrap">
+        <div class="success-icon" id="success-icon">✓</div>
+        <h1 id="success-title">Confirming…</h1>
+        <p id="success-sub">Waiting for Stripe.</p>
+
+        <div class="pending-box" id="pending-box">
+          <span class="spinner"></span>
+          <span>Confirming payment…</span>
+        </div>
+
+        <div id="delivery" hidden>
+          <div class="key-display">
+            <div class="label">License key</div>
+            <div class="key-row">
+              <code id="license-key">—</code>
+              <button class="icon-btn" type="button" id="copy-key" title="Copy" aria-label="Copy key">⧉</button>
+            </div>
+            <div class="key-meta">
+              <div><span>Product</span><b id="meta-product">—</b></div>
+              <div><span>Order</span><b id="meta-order">—</b></div>
+              <div><span>Issued</span><b id="meta-issued">—</b></div>
+              <div><span>Expires</span><b id="meta-expires">—</b></div>
+            </div>
+          </div>
+          <div class="success-actions">
+            <a class="btn btn-primary" href="/dashboard.html">Open keys</a>
+            <a class="btn btn-ghost" href="/#products">Buy another</a>
+          </div>
+        </div>
+
+        <div id="problem" hidden>
+          <div class="banner warn" id="problem-text" style="justify-content:center;text-align:left"></div>
+          <div class="success-actions">
+            <a class="btn btn-primary" href="/dashboard.html">Open keys</a>
+            <a class="btn btn-ghost" href="/#products">Store</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/assets/config.js"></script>
+  <script src="/assets/app.js"></script>
+  <script src="/assets/success.js"></script>
+</body>
+</html>

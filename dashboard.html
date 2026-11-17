@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050609">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.ketaminecc.site; base-uri 'self'; form-action 'self' https://checkout.stripe.com">
+  <title>Keys — Ketamine.cc</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="page-app app-page">
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="app-topbar">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="42" height="38">
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="btn btn-ghost btn-small" href="/#products">Store</a>
+        <a class="btn btn-subtle btn-small" href="/account.html">Account</a>
+        <button class="btn btn-subtle btn-small" type="button" data-logout>Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="app-wrap">
+      <div class="page-head">
+        <h1>Keys.</h1>
+        <p>Signed in as <span data-user-email>—</span></p>
+      </div>
+
+      <div class="stat-row" style="margin-bottom:1.25rem">
+        <div class="stat"><span>Active</span><b id="stat-active">—</b></div>
+        <div class="stat"><span>Total</span><b id="stat-total">—</b></div>
+        <div class="stat"><span>Expiring in 7d</span><b id="stat-expiring">—</b></div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Licenses</h2>
+          <a class="btn btn-ghost btn-small" href="/#products">Buy key</a>
+        </div>
+        <div class="license-list" id="license-list">
+          <div class="empty-state"><span class="spinner" style="margin-inline:auto"></span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/assets/config.js"></script>
+  <script src="/assets/app.js"></script>
+  <script src="/assets/dashboard.js"></script>
+</body>
+</html>
