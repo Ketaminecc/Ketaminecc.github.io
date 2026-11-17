@@ -6,7 +6,7 @@
 (function () {
   if (window.KET_API_BASE !== undefined) return;
 
-  const TUNNEL_API = 'https://0c37c736335e48.app.lhr.life';
+  const TUNNEL_API = 'https://84746ed8e1ddc7.app.lhr.life';
 
   const host = window.location.hostname;
   const local = host === 'localhost' || host === '127.0.0.1' || host === '' || host.endsWith('.local');
