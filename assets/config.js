@@ -11,7 +11,7 @@
 (function () {
   if (window.KET_API_BASE !== undefined) return;
 
-  const TUNNEL_API = 'https://0c68f61ea66fd0.app.lhr.life';
+  const TUNNEL_API = 'https://0d82b129ff3797.app.lhr.life';
   const CACHE_KEY = 'ket.api-base';
   const PROBE_TIMEOUT = 4500;
 
