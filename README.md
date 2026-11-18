@@ -95,8 +95,8 @@ saved. Prices are sent to Stripe dynamically from the admin-managed product reco
 plan in the dashboard changes what Stripe charges on the next checkout. No Stripe product IDs
 need to be maintained.
 
-With the current PC + localhost.run setup the API hostname rotates, so a fixed webhook URL is not
-reliable. Fulfillment does not depend on it: the success page calls
+With the current PC + tunnel setup the API hostname can change when the tunnel restarts, so a
+fixed webhook URL is not reliable. Fulfillment does not depend on it: the success page calls
 `POST /api/orders/:number/sync`, and the server reconciles pending sessions every 5 minutes.
 Configure the webhook only if the API moves to a stable hostname.
 
@@ -160,14 +160,16 @@ A Render persistent disk (Starter plan) is required so SQLite survives deploys.
 Step-by-step: **`deploy/SETUP.md`**. Ready-to-copy `deploy/Caddyfile` and
 `deploy/ketamine.service` are included.
 
-**C. Static on GitHub Pages + API on your own PC behind an SSH tunnel (current setup)**
+**C. Static on GitHub Pages + API on your own PC behind a tunnel (current setup)**
 `assets/config.js` points the static site at the tunnel hostname and
 `assets/api-base.json` revalidates it on every page load. `scripts/tunnel-watchdog.ps1`
 keeps the API and tunnel alive and republishes a rotated hostname. The launcher
 `scripts/watchdog-launcher.vbs` is copied into the Windows Startup folder so it runs at
 every logon.
 
-- Tunnel: `ssh -T -R 80:127.0.0.1:3000 nokey@localhost.run -- --output json`
+- Primary tunnel: Tunnelmole (`tunnelmole` npm package, `tmole`/node client) to port 3000.
+- Fallback tunnel: `ssh -T -R 80:127.0.0.1:3000 nokey@localhost.run -- --output json`
+  (anonymous localhost.run tunnels currently last only a couple of minutes).
 - Tunnel hostnames rotate; do not hardcode one elsewhere.
 - `CORS_ORIGINS` must match the **exact scheme + host** the browser uses. While Pages is
   HTTP-only (custom-domain certificate pending), include both `http://` and `https://`

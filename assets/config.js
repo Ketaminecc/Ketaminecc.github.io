@@ -1,8 +1,8 @@
 'use strict';
 
 /* Split hosting: static pages live on GitHub Pages while the API runs on the
-   owner's PC behind an SSH tunnel. The tunnel hostname is rewritten by
-   scripts/tunnel-watchdog.ps1 whenever localhost.run rotates it.
+   owner's PC behind a tunnel. The tunnel hostname is rewritten by
+   scripts/tunnel-watchdog.ps1 whenever the provider rotates it.
 
    Four sources can name the API and any of them can be one rotation stale, so
    none of them is trusted on sight: every candidate is probed against

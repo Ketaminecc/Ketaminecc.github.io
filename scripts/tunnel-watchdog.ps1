@@ -1,7 +1,8 @@
 # ── Ketamine.cc tunnel watchdog ───────────────────────────────────────────────
-# Keeps the local API server and the localhost.run SSH tunnel alive, and syncs
-# the rotating public tunnel hostname into assets/config.js (published to
-# GitHub Pages) and server/.env (used for Stripe return URLs).
+# Keeps the local API server and the tunnel alive, and syncs the public tunnel
+# hostname into assets/config.js (published to GitHub Pages) and server/.env
+# (used for Stripe return URLs). Tunnelmole is the primary provider because its
+# free hostname lasts until the process exits; localhost.run is the fallback.
 #
 # Start it with:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\tunnel-watchdog.ps1
@@ -19,6 +20,9 @@ $ErrorActionPreference = 'Continue'
 $Git = 'C:\Program Files\Git\cmd\git.exe'
 $Ssh = 'C:\Windows\System32\OpenSSH\ssh.exe'
 $Node = 'node'
+# tunnelmole keeps one long-lived outbound connection, so the public hostname
+# stops rotating every couple of minutes. localhost.run remains as a fallback.
+$TunnelmoleScript = 'C:\Users\angel\AppData\Roaming\npm\node_modules\tunnelmole\dist\bin\tunnelmole.js'
 
 $LogDir = Join-Path $RepoRoot 'logs'
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
@@ -70,9 +74,18 @@ function Get-ApiProcess {
     Where-Object { $_.CommandLine -like '*src/server.js*' }
 }
 
-function Get-TunnelProcess {
+function Get-LocalhostRunProcess {
   Get-CimInstance Win32_Process -Filter "Name = 'ssh.exe'" |
     Where-Object { $_.CommandLine -like '*localhost.run*' }
+}
+
+function Get-TunnelmoleProcess {
+  Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
+    Where-Object { $_.CommandLine -like '*tunnelmole*dist*bin*tunnelmole.js*' }
+}
+
+function Get-TunnelProcess {
+  @(Get-TunnelmoleProcess) + @(Get-LocalhostRunProcess)
 }
 
 function Start-Api {
@@ -94,10 +107,38 @@ function Start-Api {
   return $false
 }
 
-function Start-Tunnel {
-  Get-TunnelProcess | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-  Start-Sleep -Seconds 1
+function Start-Tunnelmole {
+  $out = Join-Path $LogDir 'tunnelmole.out.log'
+  $err = Join-Path $LogDir 'tunnelmole.err.log'
+  Remove-Item -Path $out, $err -Force -ErrorAction SilentlyContinue
+  if (-not (Test-Path $TunnelmoleScript)) {
+    Write-Log "Tunnelmole script is missing: $TunnelmoleScript"
+    return $null
+  }
 
+  Write-Log 'Opening Tunnelmole tunnel'
+  $env:TUNNELMOLE_TELEMETRY = '0'
+  Start-Process -FilePath $Node -ArgumentList @($TunnelmoleScript, "$LocalPort") `
+    -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err | Out-Null
+
+  for ($i = 0; $i -lt 45; $i++) {
+    Start-Sleep -Seconds 1
+    if (-not (Test-Path $out)) { continue }
+    $text = [string](Get-Content -Path $out -Raw -ErrorAction SilentlyContinue)
+    $match = [regex]::Match($text, 'https://[A-Za-z0-9.-]+\.tunnelmole\.net')
+    if ($match.Success) {
+      $url = $match.Value.TrimEnd('.', ',', ')', '"', "'")
+      Write-Log "Tunnel registered: $url"
+      return $url
+    }
+  }
+
+  Write-Log 'Tunnelmole did not report a hostname'
+  Get-TunnelmoleProcess | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  return $null
+}
+
+function Start-LocalhostRun {
   $out = Join-Path $LogDir 'tunnel.out.log'
   $err = Join-Path $LogDir 'tunnel.err.log'
   Remove-Item -Path $out, $err -Force -ErrorAction SilentlyContinue
@@ -131,6 +172,17 @@ function Start-Tunnel {
 
   Write-Log 'Tunnel did not report a hostname'
   return $null
+}
+
+function Start-Tunnel {
+  Get-TunnelProcess | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 1
+
+  $url = Start-Tunnelmole
+  if ($url) { return $url }
+
+  Write-Log 'Falling back to localhost.run'
+  return Start-LocalhostRun
 }
 
 function Set-FileText([string]$Path, [string]$Text) {
@@ -224,6 +276,7 @@ function Publish-Config {
 # ── Main loop ────────────────────────────────────────────────────────────────
 
 $script:PublicUrl = $null
+$script:Failures = 0
 $lastPublish = [datetime]::MinValue
 
 while ($true) {
@@ -235,8 +288,27 @@ while ($true) {
       Start-Api | Out-Null
     }
 
-    if (-not $script:PublicUrl -or -not (Test-PublicApi $script:PublicUrl)) {
-      if (Get-TunnelProcess) { Write-Log 'Tunnel is not reachable; reconnecting' }
+    $hasTunnel = [bool](Get-TunnelProcess)
+    $publicOk = $false
+    if ($script:PublicUrl) {
+      $publicOk = Test-PublicApi $script:PublicUrl
+    }
+    if ($publicOk) {
+      $script:Failures = 0
+    } else {
+      $script:Failures++
+    }
+
+    # One failed health check is usually the edge warming up or a transient
+    # route change. Reconnecting on the first miss is what produced a new
+    # hostname every 100 seconds, so require two consecutive misses.
+    if (-not $script:PublicUrl -or -not $hasTunnel -or $script:Failures -ge 2) {
+      if ($hasTunnel) {
+        Write-Log "Tunnel is not reachable ($script:Failures checks); reconnecting"
+      } else {
+        Write-Log 'Tunnel process is gone; reconnecting'
+      }
+      $script:Failures = 0
       $url = Start-Tunnel
       if ($url) {
         $script:PublicUrl = $url
