@@ -41,7 +41,7 @@ Repository → **Settings → Pages**:
    take a few minutes to issue; HTTPS fails until it does.
 
 Every push to `main` runs `.github/workflows/pages.yml`, which publishes only the
-static files (`*.html`, `assets/`, `CNAME`, `.nojekyll`, `robots.txt`).
+static files (`*.html`, `assets/`, `downloads/`, `CNAME`, `.nojekyll`, `robots.txt`).
 
 ---
 
