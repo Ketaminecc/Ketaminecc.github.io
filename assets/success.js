@@ -25,6 +25,7 @@
   const claimSubmit = document.getElementById('claim-submit');
   const claimError = document.getElementById('claim-error');
   const claimStatus = document.getElementById('claim-status');
+  const claimHelp = document.getElementById('claim-help');
   let attempts = 0;
   let currentOrder = null;
   let manualSite = null;
@@ -243,6 +244,9 @@
     const ticketUrl = manual.ticketUrl || (site && site.discordInvite) || '';
     ticketLink.hidden = !ticketUrl;
     if (ticketUrl) ticketLink.href = ticketUrl;
+    claimHelp.textContent = ticketUrl
+      ? 'Submit the transaction ID or sender name, or open a Discord ticket with your order number. The owner confirms manually.'
+      : 'Submit the transaction ID or sender name. Keep your order number; the owner confirms manually.';
 
     if (order.paymentClaimedAt) {
       claimForm.hidden = true;
