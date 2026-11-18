@@ -6,8 +6,10 @@
 
    Four sources can name the API and any of them can be one rotation stale, so
    none of them is trusted on sight: every candidate is probed against
-   /api/health and the first one that answers wins. A stale Pages document then
-   costs one failed request instead of a dead site. */
+   /api/health and the first one that answers wins. The list published on Pages
+   is tried first; the compiled hostname and the last working base are only
+   probed when that list is stale or unreachable, so a normal rotation does not
+   log a failed request against the old tunnel. */
 (function () {
   if (window.KET_API_BASE !== undefined) return;
 
@@ -87,18 +89,29 @@
     }
   }
 
-  function candidates(discovered) {
-    /* The static site's own origin is only an API origin during local
-       development. Probing it on Pages produces a pointless 404 and a console
-       error on every page load. */
-    const list = local ? [trim(window.location.origin)] : [];
-    list.push(recall(), ...discovered, TUNNEL_API);
-    const seen = new Set();
-    return list.filter((base) => {
-      const key = trim(base).toLowerCase();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
+  /* Resolve as soon as one candidate answers instead of waiting for every
+     stale hostname to time out. */
+  function firstHealthy(pool) {
+    return new Promise((resolve) => {
+      const seen = new Set();
+      const bases = pool.filter((base) => {
+        const key = trim(base).toLowerCase();
+        if (!key || seen.has(key) || !valid(base)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (bases.length === 0) {
+        resolve('');
+        return;
+      }
+      let pending = bases.length;
+      const miss = () => {
+        pending -= 1;
+        if (pending === 0) resolve('');
+      };
+      for (const base of bases) {
+        probe(base).then((ok) => (ok ? resolve(base) : miss())).catch(miss);
+      }
     });
   }
 
@@ -108,11 +121,12 @@
     if (resolving) return resolving;
     resolving = (async () => {
       const discovered = await discover();
-      const pool = candidates(discovered);
-      const verdicts = await Promise.all(pool.map((base) => probe(base)));
-      const index = verdicts.indexOf(true);
-      if (index !== -1) {
-        remember(pool[index]);
+      let winner = await firstHealthy(discovered);
+      if (!winner) {
+        winner = await firstHealthy([TUNNEL_API, recall()]);
+      }
+      if (winner) {
+        remember(winner);
         return true;
       }
       window.KET_API_BASE = discovered[0] || TUNNEL_API;
