@@ -1,3 +1,6 @@
 {
-  "api": "https://0a4da3e423013d.app.lhr.life"
+  "api": "https://homepage-organizing-survival-trust.trycloudflare.com",
+  "fallbacks": [
+    "https://pentium-adjusted-author-surname.trycloudflare.com"
+  ]
 }
