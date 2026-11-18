@@ -1,42 +1,47 @@
-# Registers the tunnel watchdog so it starts at logon and is re-checked every
-# 10 minutes. Run once:
+# Registers the tunnel watchdog without requiring an elevated shell.
+#
+# scripts\watchdog-launcher.vbs is copied into the per-user Startup folder. It
+# runs the watchdog hidden at logon and restarts it 15 seconds after it exits.
+# The watchdog also holds a named mutex, so a manual start or a second launcher
+# can never create a duplicate.
+#
+# Run once:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-watchdog.ps1
 
 $ErrorActionPreference = 'Stop'
 
 $repo = 'C:\Users\angel\OneDrive\Pictures\fwaf'
-$script = Join-Path $repo 'scripts\tunnel-watchdog.ps1'
+$source = Join-Path $repo 'scripts\watchdog-launcher.vbs'
+$startup = [Environment]::GetFolderPath('Startup')
+$target = Join-Path $startup 'Ketaminecc Watchdog.vbs'
 
-if (-not (Test-Path $script)) { throw "Watchdog script not found: $script" }
+if (-not (Test-Path $source)) { throw "Watchdog launcher not found: $source" }
+New-Item -ItemType Directory -Force -Path $startup | Out-Null
+Copy-Item -Path $source -Destination $target -Force
+Write-Host "Startup supervisor: $target"
 
-$action = New-ScheduledTaskAction `
-  -Execute 'powershell.exe' `
-  -Argument ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{0}"' -f $script)
+# Remove the task/shortcut experiments so only the Startup supervisor remains.
+foreach ($task in @('Ketaminecc Tunnel Watchdog Keepalive', 'Ketaminecc Tunnel Watchdog')) {
+  & schtasks.exe /delete /tn $task /f 2>$null | Out-Null
+}
+$shortcut = Join-Path $startup 'Ketaminecc Tunnel Watchdog.lnk'
+if (Test-Path $shortcut) { Remove-Item -Path $shortcut -Force }
 
-$atLogon = New-ScheduledTaskTrigger -AtLogOn
-$repeat = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-  -RepetitionInterval (New-TimeSpan -Minutes 10) `
-  -RepetitionDuration (New-TimeSpan -Days 3650)
+# Stop a stale supervisor, but leave the Startup copy alone when it is already
+# running. The running watchdog keeps running either way; a new supervisor takes
+# over as soon as it exits.
+$supervisors = @(Get-CimInstance Win32_Process -Filter "Name = 'wscript.exe'" |
+  Where-Object { $_.CommandLine -match 'watchdog-launcher\.vbs|Ketaminecc Watchdog\.vbs' })
+$alreadyRunning = $supervisors | Where-Object { $_.CommandLine -like "*$target*" }
+if ($alreadyRunning) {
+  Write-Host 'Startup supervisor is already running'
+} else {
+  $supervisors | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 1
+  Start-Process -FilePath 'wscript.exe' -ArgumentList "`"$target`"" -WindowStyle Hidden
+  Start-Sleep -Seconds 2
+}
 
-$settings = New-ScheduledTaskSettingsSet `
-  -AllowStartIfOnBatteries `
-  -DontStopIfGoingOnBatteries `
-  -StartWhenAvailable `
-  -MultipleInstances IgnoreNew `
-  -ExecutionTimeLimit ([TimeSpan]::Zero)
-
-Register-ScheduledTask `
-  -TaskName 'Ketaminecc Tunnel Watchdog' `
-  -Description 'Keeps the Ketamine.cc API and SSH tunnel online and republishes the tunnel URL.' `
-  -Action $action `
-  -Trigger @($atLogon, $repeat) `
-  -Settings $settings `
-  -RunLevel Limited `
-  -Force | Out-Null
-
-Write-Host 'Registered task: Ketaminecc Tunnel Watchdog'
-Write-Host 'Starting it now...'
-Start-ScheduledTask -TaskName 'Ketaminecc Tunnel Watchdog'
-Start-Sleep -Seconds 3
-Get-ScheduledTask -TaskName 'Ketaminecc Tunnel Watchdog' | Select-Object State
-Get-ScheduledTaskInfo -TaskName 'Ketaminecc Tunnel Watchdog' | Select-Object LastRunTime, LastTaskResult
+Get-CimInstance Win32_Process -Filter "Name = 'wscript.exe'" |
+  Where-Object { $_.CommandLine -match 'watchdog-launcher\.vbs|Ketaminecc Watchdog\.vbs' } |
+  Select-Object ProcessId, CommandLine

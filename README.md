@@ -147,7 +147,7 @@ of redirecting to a failing Stripe page.
 
 ---
 
-## 5. Deploy on your own domain (no Cloudflare)
+## 5. Deploy on your own domain
 
 Two supported layouts:
 
@@ -160,20 +160,23 @@ A Render persistent disk (Starter plan) is required so SQLite survives deploys.
 Step-by-step: **`deploy/SETUP.md`**. Ready-to-copy `deploy/Caddyfile` and
 `deploy/ketamine.service` are included.
 
-**C. Static on GitHub Pages + API on your own PC behind a tunnel (current setup)**
-`assets/config.js` points the static site at the tunnel hostname and
-`assets/api-base.json` revalidates it on every page load. `scripts/tunnel-watchdog.ps1`
-keeps the API and tunnel alive and republishes a rotated hostname. The launcher
-`scripts/watchdog-launcher.vbs` is copied into the Windows Startup folder so it runs at
-every logon.
+**C. Static on GitHub Pages + API on your own PC behind a Cloudflare Quick Tunnel (current setup)**
+`assets/config.js` probes the public API and `assets/api-base.json` is revalidated on every
+page load, so a rotated hostname costs one request instead of a dead site. The loader reads
+the same list and caches the last working base in `api.cache.txt`.
 
-- Primary tunnel: Tunnelmole (`tunnelmole` npm package, `tmole`/node client) to port 3000.
-- Fallback tunnel: `ssh -T -R 80:127.0.0.1:3000 nokey@localhost.run -- --output json`
-  (anonymous localhost.run tunnels currently last only a couple of minutes).
-- Tunnel hostnames rotate; do not hardcode one elsewhere.
-- `CORS_ORIGINS` must match the **exact scheme + host** the browser uses. While Pages is
-  HTTP-only (custom-domain certificate pending), include both `http://` and `https://`
-  variants or every browser API call fails with `Failed to fetch`.
+- Primary and standby: `cloudflared tunnel --url http://127.0.0.1:3000 --no-autoupdate`
+  (Quick Tunnels; no account and no public IP exposed).
+- `scripts/tunnel-watchdog.ps1` keeps the API and both tunnels alive, promotes the standby
+  when the primary fails, and republishes the hostnames to `assets/config.js`,
+  `assets/api-base.json`, `server/.env`, and the client's `api.txt` / `api.cache.txt`.
+- Every page's CSP allows `https://*.trycloudflare.com` for the API origin.
+- `scripts/watchdog-launcher.vbs` is copied into the Windows Startup folder so the watchdog
+  starts at logon and is restarted 15 seconds after it exits.
+- Tunnel hostnames rotate when cloudflared restarts; do not hardcode one elsewhere.
+- `CORS_ORIGINS` must match the **exact scheme + host** the browser uses. Include both
+  `http://` and `https://` variants while a certificate is pending, or every browser API
+  call fails with `Failed to fetch`.
 - `localhost` on Windows can resolve to IPv6, so always forward to `127.0.0.1`.
 - The PC must stay awake with the server and tunnel running.
 
