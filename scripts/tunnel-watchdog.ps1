@@ -10,7 +10,8 @@
 param(
   [string]$RepoRoot = 'C:\Users\angel\OneDrive\Pictures\fwaf',
   [int]$LocalPort = 3000,
-  [int]$PollSeconds = 20
+  [int]$PollSeconds = 20,
+  [string]$PublicDir = 'D:\Roblox\Source\Public'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -151,11 +152,22 @@ function Update-SiteConfig([string]$Url) {
 
   $envPath = Join-Path $RepoRoot 'server\.env'
   if (Test-Path $envPath) {
-    $envText = [string](Get-Content -Path $envPath -Raw)
-    $updatedEnv = [regex]::Replace($envText, 'PUBLIC_BASE_URL=.*', "PUBLIC_BASE_URL=$Url")
-    if ($updatedEnv -ne $envText) {
-      Set-FileText $envPath $updatedEnv
-      $changed = $true
+    $envText = [string](Get-Content -Path $envPath -Raw -ErrorAction SilentlyContinue)
+    # Never write back an empty read. A locked or transiently unreadable .env
+    # used to round-trip through the regex as '' and truncate the file, which
+    # took the API down until every secret was restored by hand.
+    if ($envText.Length -eq 0) {
+      Write-Log 'server/.env is empty or unreadable; leaving it untouched'
+    } else {
+      if ($envText -match '(?m)^\s*PUBLIC_BASE_URL=') {
+        $updatedEnv = [regex]::Replace($envText, '(?m)^\s*PUBLIC_BASE_URL=.*$', "PUBLIC_BASE_URL=$Url")
+      } else {
+        $updatedEnv = $envText.TrimEnd() + "`nPUBLIC_BASE_URL=$Url`n"
+      }
+      if ($updatedEnv -ne $envText) {
+        Set-FileText $envPath $updatedEnv
+        $changed = $true
+      }
     }
   }
 
@@ -165,6 +177,18 @@ function Update-SiteConfig([string]$Url) {
   if ($current.Trim() -ne $json.Trim()) {
     Set-FileText $jsonPath $json
     $changed = $true
+  }
+
+  # The desktop client reads api.txt from the folder it was launched from, so
+  # a rotated tunnel reaches the shipped exe without a rebuild. Local file
+  # only: it never enters the Pages commit.
+  if (Test-Path $PublicDir) {
+    $apiPath = Join-Path $PublicDir 'api.txt'
+    $currentApi = if (Test-Path $apiPath) { [string](Get-Content -Path $apiPath -Raw) } else { '' }
+    if ($currentApi.Trim() -ne $Url) {
+      Set-FileText $apiPath "$Url`n"
+      Write-Log "Wrote client api.txt -> $Url"
+    }
   }
 
   return $changed
@@ -227,6 +251,15 @@ while ($true) {
           $lastPublish = Get-Date
         }
       }
+    }
+
+    # Self-heal drift: the published files and .env must name the tunnel that is
+    # actually live, even when the tunnel itself never dropped. Without this a
+    # restart that rotates the hostname leaves Pages pointing at the old one.
+    if ($script:PublicUrl -and (Update-SiteConfig $script:PublicUrl)) {
+      Write-Log "Published files were stale; repointing at $script:PublicUrl"
+      Publish-Config
+      $lastPublish = Get-Date
     }
 
     if ($script:PublicUrl -and ((Get-Date) - $lastPublish).TotalSeconds -gt 300) {

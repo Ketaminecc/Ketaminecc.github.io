@@ -28,6 +28,7 @@ const {
 const { refundPaymentIntent, stripeConfigured, stripeSource, webhookSecret, resetStripeClient, verifyStripeKey } = require('./stripe');
 const { sendTestLog, getWebhookUrl, isValidWebhook } = require('./discord');
 const { publicPaymentMode } = require('./payments');
+const licensing = require('./licensing');
 
 const router = express.Router();
 
@@ -308,6 +309,36 @@ router.post('/licenses/:id/blacklist', (req, res) => {
   }
   audit('admin', 'license.blacklist', license.key_preview, { licenseId: license.id });
   res.json({ ok: true });
+});
+
+// ── Hardware bindings ────────────────────────────────────────────────────────
+
+router.get('/licenses/:id/hwid', (req, res) => {
+  const license = db.prepare('SELECT id, email, key_preview FROM licenses WHERE id = ?').get(req.params.id);
+  if (!license) return res.status(404).json({ error: 'License not found.' });
+  const binding = licensing.bindingForLicense(license.id);
+  res.json({
+    license: { id: license.id, email: license.email, preview: license.key_preview },
+    binding: binding
+      ? {
+          hwidPreview: binding.hwid_preview,
+          email: binding.email,
+          firstIp: binding.first_ip,
+          lastIp: binding.last_ip,
+          boundAt: binding.bound_at,
+          lastSeenAt: binding.last_seen_at,
+          loginCount: binding.login_count,
+        }
+      : null,
+  });
+});
+
+router.post('/licenses/:id/hwid/reset', (req, res) => {
+  const license = db.prepare('SELECT id, key_preview FROM licenses WHERE id = ?').get(req.params.id);
+  if (!license) return res.status(404).json({ error: 'License not found.' });
+  const removed = licensing.resetBinding(license.id);
+  audit('admin', 'license.hwid_reset', license.key_preview, { licenseId: license.id, removed });
+  res.json({ ok: true, removed });
 });
 
 // ── Customers ────────────────────────────────────────────────────────────────

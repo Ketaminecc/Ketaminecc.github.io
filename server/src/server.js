@@ -106,6 +106,8 @@ app.use('/api', cors);
 app.use(originGuard);
 
 app.use('/api/admin', require('./admin'));
+app.use('/api', require('./licensing'));
+app.use('/api', require('./loader'));
 app.use('/api', require('./public'));
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
@@ -138,6 +140,8 @@ const pages = {
   '/account.html': 'account.html',
   '/admin': 'admin.html',
   '/admin.html': 'admin.html',
+  '/loader': 'loader.html',
+  '/loader.html': 'loader.html',
 };
 
 for (const [route, file] of Object.entries(pages)) {
@@ -161,9 +165,15 @@ app.use((req, res) => {
 // ── Error handler ────────────────────────────────────────────────────────────
 
 app.use((err, _req, res, _next) => {
-  console.error('[server] unhandled error:', err);
+  // body-parser marks its own failures with a 4xx status. A client that sends
+  // broken JSON gets 400, not a 500 that reads like the server is down.
+  const status = Number(err?.status || err?.statusCode) || 500;
+  if (status >= 500) console.error('[server] unhandled error:', err);
   if (res.headersSent) return;
-  res.status(500).json({ error: 'Internal server error' });
+  if (status >= 500) return res.status(500).json({ error: 'Internal server error' });
+  return res.status(status).json({
+    error: status === 400 ? 'Malformed request body.' : 'Request rejected.',
+  });
 });
 
 // ── Stripe reconciliation (webhook backup) ───────────────────────────────────
@@ -204,6 +214,10 @@ setTimeout(() => {
 }, 15_000).unref();
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
+
+// assets/api-base.json is owned by scripts/tunnel-watchdog.ps1, which writes it
+// at the same moment it rewrites the tunnel hostname. The server does not touch
+// it: two writers means the stale one wins whenever the order flips.
 
 const server = app.listen(config.port, config.host, async () => {
   console.log(`\n  ${config.brand} licensing server`);

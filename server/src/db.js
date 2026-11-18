@@ -88,6 +88,18 @@ db.exec(`
     note TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS license_bindings (
+    license_id TEXT PRIMARY KEY,
+    hwid_hash TEXT NOT NULL,
+    hwid_preview TEXT,
+    email TEXT,
+    first_ip TEXT,
+    last_ip TEXT,
+    bound_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL,
+    login_count INTEGER NOT NULL DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS verify_codes (
     id TEXT PRIMARY KEY,
     order_id TEXT NOT NULL,
@@ -125,6 +137,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
   CREATE INDEX IF NOT EXISTS idx_licenses_user ON licenses(user_id);
   CREATE INDEX IF NOT EXISTS idx_licenses_order ON licenses(order_id);
+  CREATE INDEX IF NOT EXISTS idx_bindings_hwid ON license_bindings(hwid_hash);
   CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
   CREATE INDEX IF NOT EXISTS idx_audit_created ON audit(created_at);
 `);

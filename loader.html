@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050609">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.ketaminecc.website https://api.ketaminecc.site https://*.lhr.life; base-uri 'self'; form-action 'self'">
+  <title>Loader - Ketamine.cc</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/logo-icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/logo-icon.png">
+  <link rel="stylesheet" href="/assets/styles.css?v=18">
+</head>
+<body class="page-app app-page">
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="app-topbar">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">
+          <img class="brand-logo" src="/assets/logo.png" alt="" width="36" height="34">
+          <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="26" height="24">
+        </span>
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="btn btn-ghost btn-small" href="/dashboard.html">Keys</a>
+        <a class="btn btn-subtle btn-small" href="/account.html">Account</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="app-wrap">
+      <div class="page-head">
+        <h1>Loader.</h1>
+        <p>License lookup the desktop client reads. One request, one snapshot.</p>
+      </div>
+
+      <section class="panel" style="margin-bottom:1.25rem">
+        <div class="panel-head">
+          <h2>Look up a key</h2>
+          <span class="sub">Read only</span>
+        </div>
+        <form id="lookup-form" autocomplete="off">
+          <div class="field-row">
+            <label class="field">
+              <span>License key</span>
+              <input class="input" id="license-key" name="key" type="text" spellcheck="false"
+                     placeholder="KET-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off">
+              <span class="hint">The key from your order. The hardware ID is optional and only marks a match.</span>
+            </label>
+            <label class="field">
+              <span>Hardware ID</span>
+              <input class="input" id="license-hwid" name="hwid" type="text" spellcheck="false"
+                     placeholder="64 hex characters" autocomplete="off">
+              <span class="hint">Leave empty to inspect the license without comparing a machine.</span>
+            </label>
+          </div>
+          <div style="display:flex;gap:.6rem;align-items:center;margin-top:1rem">
+            <button class="btn btn-primary btn-small" type="submit" id="lookup-submit">Check</button>
+            <button class="btn btn-subtle btn-small" type="button" id="lookup-copy">Copy JSON</button>
+            <span class="dim" id="lookup-note"></span>
+          </div>
+        </form>
+      </section>
+
+      <div class="stat-row" id="lookup-stats" hidden style="margin-bottom:1.25rem">
+        <div class="stat"><span>Status</span><b id="stat-status">-</b></div>
+        <div class="stat"><span>Product</span><b id="stat-product">-</b></div>
+        <div class="stat"><span>Expires</span><b id="stat-expires">-</b></div>
+        <div class="stat"><span>Machine</span><b id="stat-machine">-</b></div>
+      </div>
+
+      <section class="panel" id="lookup-panel" hidden>
+        <div class="panel-head">
+          <h2>Snapshot</h2>
+          <span class="sub" id="lookup-source">-</span>
+        </div>
+        <pre class="mono" id="lookup-json" style="margin:0;white-space:pre-wrap;word-break:break-word;font-size:.82rem;line-height:1.6"></pre>
+      </section>
+
+      <section class="panel" id="lookup-empty">
+        <div class="empty-state">
+          <b>Nothing loaded yet.</b>
+          <span>Enter a key above. The client calls the same route, <span class="mono">POST /api/loader/info</span>, and renders this exact shape.</span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/assets/config.js?v=18"></script>
+  <script src="/assets/app.js?v=18"></script>
+  <script src="/assets/loader.js?v=18"></script>
+</body>
+</html>
