@@ -22,7 +22,7 @@ Write-Host "Startup supervisor: $target"
 
 # Remove the task/shortcut experiments so only the Startup supervisor remains.
 foreach ($task in @('Ketaminecc Tunnel Watchdog Keepalive', 'Ketaminecc Tunnel Watchdog')) {
-  & schtasks.exe /delete /tn $task /f 2>$null | Out-Null
+  & cmd.exe /c "schtasks /delete /tn `"$task`" /f >nul 2>&1" | Out-Null
 }
 $shortcut = Join-Path $startup 'Ketaminecc Tunnel Watchdog.lnk'
 if (Test-Path $shortcut) { Remove-Item -Path $shortcut -Force }
