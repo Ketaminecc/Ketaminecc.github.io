@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050609">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.ketaminecc.website https://api.ketaminecc.site https://*.lhr.life https://*.tunnelmole.net https://*.trycloudflare.com; base-uri 'self'; form-action 'self' https://checkout.stripe.com">
+  <title>Setup guide — Ketamine.cc</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/logo-icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/logo-icon.png">
+  <link rel="stylesheet" href="/assets/styles.css?v=22">
+</head>
+<body class="page-app app-page">
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="app-topbar">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">
+          <img class="brand-logo" src="/assets/logo.png" alt="" width="36" height="34">
+          <img class="santa-hat" src="/assets/santa-hat.png" alt="" width="26" height="24">
+        </span>
+        <span class="brand-name">Ketamine<span>.cc</span></span>
+      </a>
+      <div class="header-actions">
+        <a class="btn btn-subtle btn-small" href="/dashboard.html">Keys</a>
+        <a class="btn btn-subtle btn-small" href="/account.html">Account</a>
+        <button class="btn btn-subtle btn-small" type="button" data-logout>Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="app-wrap setup-wrap">
+      <div class="page-head setup-head">
+        <div>
+          <h1>Setup guide.</h1>
+          <p>Signed in as <span data-user-email>—</span></p>
+        </div>
+        <span class="pill ok" id="setup-active-pill" hidden>Active license</span>
+      </div>
+
+      <section class="panel setup-loading" id="setup-loading">
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Checking your license…</span>
+      </section>
+
+      <section class="panel setup-locked" id="setup-locked" hidden>
+        <span class="setup-kicker">Active license required</span>
+        <h2>Setup guide locked.</h2>
+        <p id="setup-locked-copy">The installation checklist is available to accounts with an active license. If you just purchased, check your Keys page for the new key.</p>
+        <div class="setup-locked-actions">
+          <a class="btn btn-primary" href="/dashboard.html">View license keys</a>
+          <a class="btn btn-subtle" href="/#products">Buy a license</a>
+        </div>
+      </section>
+
+      <section class="panel setup-card" id="setup-content" hidden>
+        <div class="setup-card-head">
+          <div>
+            <span class="setup-kicker">Active license</span>
+            <h2>Install checklist</h2>
+          </div>
+          <span class="sub" id="setup-license-meta">—</span>
+        </div>
+
+        <ol class="setup-steps">
+          <li class="setup-step">
+            <div class="setup-step-body">
+              <h3>Disable AV/Antivirus.</h3>
+              <p>Turn off real-time protection before you extract the loader. If your antivirus removes the file, restore it and add the extracted folder to your exclusions.</p>
+            </div>
+          </li>
+
+          <li class="setup-step">
+            <div class="setup-step-body">
+              <h3>Install C++/.NET and redistributables.</h3>
+              <p>Install the Microsoft Visual C++ Redistributable (x64) and the .NET Desktop Runtime. Both are free downloads from Microsoft.</p>
+              <div class="setup-actions">
+                <a class="btn btn-subtle btn-small" href="https://aka.ms/vs/17/release/vc_redist.x64.exe" target="_blank" rel="noopener">C++ redistributable</a>
+                <a class="btn btn-subtle btn-small" href="https://dotnet.microsoft.com/en-us/download" target="_blank" rel="noopener">.NET download</a>
+              </div>
+            </div>
+          </li>
+
+          <li class="setup-step">
+            <div class="setup-step-body">
+              <h3>Download loader.</h3>
+              <p>Get the latest public build and extract the zip to a permanent folder. Keep every extracted file together and do not run the loader from inside the archive.</p>
+              <div class="setup-actions">
+                <a class="btn btn-primary btn-small" href="/downloads/Ketaminecc.zip" download>Download loader</a>
+                <span class="setup-note">Windows x64 · ZIP</span>
+              </div>
+            </div>
+          </li>
+
+          <li class="setup-step">
+            <div class="setup-step-body">
+              <h3>Launch Loader — Run as administrator.</h3>
+              <p>Open the extracted folder, right-click <code>Ketaminecc.exe</code>, and choose <b>Run as administrator</b>.</p>
+            </div>
+          </li>
+
+          <li class="setup-step">
+            <div class="setup-step-body">
+              <h3>Enter credentials — Email, License. Hit Enter.</h3>
+              <p>Use the email on your order and paste your license key. You can copy the key from your <a class="link" href="/dashboard.html">Keys page</a>.</p>
+              <div class="setup-credentials">
+                <span><b>Email</b><code>the email on your order</code></span>
+                <span><b>License</b><code>KET-xxxxx-xxxxx-xxxxx-xxxxx</code></span>
+              </div>
+            </div>
+          </li>
+
+          <li class="setup-step">
+            <div class="setup-step-body">
+              <h3>Press Attach and have fun.</h3>
+              <p>Open Roblox, then press <b>Attach</b> in the loader. The menu opens with <code>RSHIFT</code>.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+    </div>
+  </main>
+
+  <script src="/assets/config.js?v=22"></script>
+  <script src="/assets/app.js?v=22"></script>
+  <script src="/assets/setup.js?v=22"></script>
+</body>
+</html>

@@ -126,6 +126,17 @@ app.use(
   })
 );
 
+/* The public loader package is a static download, not an API response. */
+app.use(
+  '/downloads',
+  express.static(path.join(siteDir, 'downloads'), {
+    maxAge: config.isProd ? '1h' : 0,
+    fallthrough: true,
+    index: false,
+    dotfiles: 'deny',
+  })
+);
+
 const pages = {
   '/': 'index.html',
   '/index.html': 'index.html',
@@ -143,6 +154,8 @@ const pages = {
   '/admin.html': 'admin.html',
   '/loader': 'loader.html',
   '/loader.html': 'loader.html',
+  '/setup': 'setup.html',
+  '/setup.html': 'setup.html',
 };
 
 for (const [route, file] of Object.entries(pages)) {
@@ -155,7 +168,7 @@ for (const [route, file] of Object.entries(pages)) {
 }
 
 app.get('/robots.txt', (_req, res) => {
-  res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /account\n');
+  res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /account\nDisallow: /setup\n');
 });
 
 app.use((req, res) => {

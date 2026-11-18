@@ -4,6 +4,7 @@
   const list = document.getElementById('license-list');
   const pendingPanel = document.getElementById('pending-panel');
   const pendingList = document.getElementById('pending-list');
+  const setupEntry = document.getElementById('setup-entry');
   let licenses = [];
 
   const methodLabels = { cashapp: 'Cash App', paypal: 'PayPal', crypto: 'Crypto' };
@@ -55,6 +56,7 @@
     document.getElementById('stat-active').textContent = String(active);
     document.getElementById('stat-total').textContent = String(licenses.length);
     document.getElementById('stat-expiring').textContent = String(expiring);
+    setupEntry.hidden = active === 0;
 
     if (!licenses.length) {
       list.innerHTML =

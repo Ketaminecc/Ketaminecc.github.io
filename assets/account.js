@@ -3,6 +3,7 @@
 (function () {
   const ordersBody = document.getElementById('orders-body');
   const errorBox = document.getElementById('password-error');
+  const setupEntry = document.getElementById('setup-entry');
 
   const statusClass = {
     paid: 'ok',
@@ -46,12 +47,21 @@
     document.querySelectorAll('[data-user-email]').forEach((el) => (el.textContent = user.email));
     document.getElementById('member-since').textContent = window.KET.date(user.createdAt);
 
-    try {
-      const result = await window.KET.api('/api/orders');
-      renderOrders(result.orders);
-    } catch (err) {
+    const [ordersResult, licensesResult] = await Promise.allSettled([
+      window.KET.api('/api/orders'),
+      window.KET.api('/api/licenses'),
+    ]);
+
+    if (ordersResult.status === 'fulfilled') {
+      renderOrders(ordersResult.value.orders || []);
+    } else {
       ordersBody.innerHTML = '<tr><td colspan="6" class="table-empty">Could not load orders.</td></tr>';
-      window.KET.toast(err.message || 'Failed to load orders.', 'error');
+      window.KET.toast(ordersResult.reason?.message || 'Failed to load orders.', 'error');
+    }
+
+    if (licensesResult.status === 'fulfilled') {
+      const licenses = licensesResult.value.licenses || [];
+      setupEntry.hidden = !licenses.some((license) => license.status === 'active');
     }
   }
 

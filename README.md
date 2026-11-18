@@ -14,6 +14,8 @@ fwaf/
 ├─ checkout-success.html      license delivery
 ├─ dashboard.html             license keys (account)
 ├─ account.html               orders + password
+├─ setup.html                 active-license setup guide
+├─ downloads/                 public loader package (Ketaminecc.zip)
 ├─ admin.html                 owner console
 ├─ assets/                    styles, client scripts, santa hat decal, favicon
 └─ server/
