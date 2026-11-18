@@ -18,12 +18,13 @@
     licenses: [],
     users: [],
     generatedKeys: [],
+    redeemedKey: '',
   };
 
   const viewMeta = {
     overview: ['Overview', 'Control plane · encrypted purchase audit'],
     orders: ['Orders', 'Payments, fulfillment, refunds, and revocation'],
-    licenses: ['Licenses', 'Restock, inspect, revoke, or blacklist keys'],
+    licenses: ['Licenses', 'Restock, redeem for giveaways, inspect, or revoke keys'],
     products: ['Products', 'Storefront plans and Stripe pricing'],
     customers: ['Customers', 'Accounts, spend, and access'],
     blacklist: ['Blacklist', 'Block emails, keys, IPs, and Discord IDs'],
@@ -375,10 +376,7 @@
   }
 
   function fillProductSelect() {
-    const select = $('#license-product');
-    if (!select) return;
-    const current = select.value;
-    select.innerHTML = state.products
+    const options = state.products
       .map(
         (product) =>
           `<option value="${esc(product.id)}">${esc(product.name)}${product.active ? '' : ' (hidden)'} — ${money(
@@ -387,7 +385,13 @@
           )}</option>`
       )
       .join('');
-    if (current && state.products.some((p) => p.id === current)) select.value = current;
+    ['#license-product', '#redeem-product'].forEach((selector) => {
+      const select = $(selector);
+      if (!select) return;
+      const current = select.value;
+      select.innerHTML = options;
+      if (current && state.products.some((p) => p.id === current)) select.value = current;
+    });
   }
 
   async function loadLicenses() {
@@ -486,6 +490,41 @@
     } finally {
       btn.disabled = false;
       btn.textContent = 'Generate stock';
+    }
+  }
+
+  async function redeemLicenseForUser(event) {
+    event.preventDefault();
+    clearError('redeem-error');
+    const email = $('#redeem-email').value.trim();
+    const productId = $('#redeem-product').value;
+    const durationRaw = $('#redeem-duration').value.trim();
+    const note = $('#redeem-note').value.trim();
+    const btn = $('#license-redeem-submit');
+    btn.disabled = true;
+    btn.textContent = 'Redeeming…';
+    try {
+      const body = { email, productId, note };
+      if (durationRaw) {
+        body.durationDays = /^\d+$/.test(durationRaw) ? Number(durationRaw) : durationRaw;
+      }
+      const result = await adminApi('/api/admin/licenses/redeem', { method: 'POST', body });
+      state.redeemedKey = result.key || '';
+      $('#license-redeem-result').hidden = false;
+      $('#redeem-key-value').textContent = result.key || '';
+      $('#redeem-copy').setAttribute('data-copy', result.key || '');
+      const expiry = result.expiresAt ? `expires ${date(result.expiresAt)}` : 'never expires';
+      $('#redeem-meta').textContent = `${result.email} · ${result.productName} · ${
+        result.source === 'stock' ? 'from stock' : 'newly generated'
+      } · ${expiry} · ${result.stockRemaining} left in stock`;
+      window.KET.toast(`Key redeemed for ${result.email}.`, 'ok');
+      $('#redeem-email').value = '';
+      await loadLicenses();
+    } catch (err) {
+      if (err.status !== 401) showError('redeem-error', err.message || 'Redeem failed.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Redeem key';
     }
   }
 
@@ -974,6 +1013,7 @@
     });
 
     $('#license-form').addEventListener('submit', generateLicenses);
+    $('#license-redeem-form').addEventListener('submit', redeemLicenseForUser);
     $('#product-form').addEventListener('submit', saveProduct);
     $('#new-product').addEventListener('click', () => openProductModal(null));
     $('#blacklist-form').addEventListener('submit', addBlacklist);

@@ -5,6 +5,11 @@
   const pendingPanel = document.getElementById('pending-panel');
   const pendingList = document.getElementById('pending-list');
   const setupEntry = document.getElementById('setup-entry');
+  const redeemForm = document.getElementById('redeem-form');
+  const redeemKey = document.getElementById('redeem-key');
+  const redeemError = document.getElementById('redeem-error');
+  const redeemResult = document.getElementById('redeem-result');
+  const redeemSubmit = document.getElementById('redeem-submit');
   let licenses = [];
 
   const methodLabels = { cashapp: 'Cash App', paypal: 'PayPal', crypto: 'Crypto' };
@@ -110,6 +115,59 @@
     });
   }
 
+  function showRedeemError(message) {
+    if (!redeemError) return;
+    redeemError.textContent = message || '';
+    redeemError.classList.toggle('show', Boolean(message));
+  }
+
+  async function redeemKeySubmit(event) {
+    event.preventDefault();
+    const key = (redeemKey?.value || '').trim();
+    showRedeemError('');
+    if (redeemResult) redeemResult.hidden = true;
+    if (!key) {
+      showRedeemError('Paste the license key from your giveaway message.');
+      redeemKey?.focus();
+      return;
+    }
+
+    if (redeemSubmit) {
+      redeemSubmit.disabled = true;
+      redeemSubmit.textContent = 'Redeeming...';
+    }
+    try {
+      const data = await window.KET.api('/api/licenses/redeem', {
+        method: 'POST',
+        body: { key },
+      });
+      const license = data.license || {};
+      if (redeemKey) redeemKey.value = '';
+      if (redeemResult) {
+        const expiry = license.expiresAt
+          ? `expires ${window.KET.date(license.expiresAt)}`
+          : 'never expires';
+        redeemResult.innerHTML = `${data.already ? 'Already on your account' : 'Key added'} ·
+          <b>${window.KET.escape(license.productName || 'License')}</b> · ${window.KET.escape(expiry)}`;
+        redeemResult.hidden = false;
+      }
+      window.KET.toast(
+        data.already ? 'This key is already on your account.' : 'License redeemed.',
+        'ok'
+      );
+      const refreshed = await window.KET.api('/api/licenses');
+      licenses = refreshed.licenses || [];
+      render();
+    } catch (err) {
+      showRedeemError(err.message || 'Could not redeem that key.');
+    } finally {
+      if (redeemSubmit) {
+        redeemSubmit.disabled = false;
+        redeemSubmit.textContent = 'Redeem key';
+      }
+    }
+  }
+
   async function boot() {
     const data = await window.KET.guard();
     if (!data) return;
@@ -131,6 +189,7 @@
     }
   }
 
+  redeemForm?.addEventListener('submit', redeemKeySubmit);
   document.querySelectorAll('[data-logout]').forEach((btn) => btn.addEventListener('click', () => window.KET.logout()));
   boot();
 })();

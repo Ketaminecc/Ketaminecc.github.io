@@ -14,6 +14,7 @@ const {
   verifyCodeHash,
   normalizeLicenseKey,
   licenseHash,
+  decryptText,
 } = require('./security');
 const { issueSession, clearSession, requireUser, optionalUser, USER_COOKIE } = require('./auth');
 const {
@@ -264,6 +265,114 @@ router.get('/licenses', requireUser, (req, res) => {
     .all(req.user.id, req.user.email);
   res.json({ licenses: rows.map(serializeLicenseForUser) });
 });
+
+/* Giveaway keys are issued as stock so they carry no owner. The winner signs
+   in, pastes the key here, and the key is activated onto their account. A key
+   that is already active on another account stays where it is. */
+router.post(
+  '/licenses/redeem',
+  requireUser,
+  rateLimit({ windowMs: 60_000, max: 10, key: 'license-redeem' }),
+  (req, res) => {
+    const key = normalizeLicenseKey(String(req.body?.key || ''));
+    if (key.length < 16) {
+      return res.status(400).json({ error: 'Enter the full license key.' });
+    }
+
+    const row = db
+      .prepare(
+        `SELECT l.*, p.name AS product_name, o.number AS order_number,
+                u.blacklisted AS user_blacklisted
+         FROM licenses l
+         LEFT JOIN products p ON p.id = l.product_id
+         LEFT JOIN orders o ON o.id = l.order_id
+         LEFT JOIN users u ON u.id = l.user_id
+         WHERE l.key_hash = ?`
+      )
+      .get(licenseHash(key));
+    if (!row) {
+      return res.status(404).json({ error: 'That license key was not found.' });
+    }
+    if (isBlacklisted('key', row.key_hash)) {
+      return res.status(403).json({ error: 'This license key has been blocked.' });
+    }
+    if (row.user_blacklisted) {
+      return res.status(403).json({ error: 'This account is suspended.' });
+    }
+
+    const accountEmail = normalizeEmail(req.user.email);
+    const ownerEmail = row.email ? normalizeEmail(row.email) : '';
+    const mine =
+      (row.user_id && row.user_id === req.user.id) ||
+      (!row.user_id && ownerEmail && ownerEmail === accountEmail);
+
+    if (row.status === 'active') {
+      if (!mine) {
+        return res.status(409).json({ error: 'This license has already been redeemed.' });
+      }
+      return res.json({
+        ok: true,
+        already: true,
+        source: 'stock',
+        license: serializeLicenseForUser(row),
+      });
+    }
+    if (row.status === 'revoked' || row.status === 'blacklisted') {
+      return res.status(403).json({ error: 'This license is no longer valid.' });
+    }
+    if (row.status !== 'stock') {
+      return res.status(409).json({ error: 'This license cannot be redeemed.' });
+    }
+    if (row.user_id || (ownerEmail && ownerEmail !== accountEmail)) {
+      return res.status(409).json({ error: 'This license has already been redeemed.' });
+    }
+
+    const now = Date.now();
+    const days = row.duration_days;
+    const expiresAt = days === null || days === undefined
+      ? null
+      : now + Number(days) * 86_400_000;
+    const result = db
+      .prepare(
+        `UPDATE licenses
+            SET status = 'active', user_id = ?, email = ?, issued_at = ?, expires_at = ?
+          WHERE id = ? AND status = 'stock'`
+      )
+      .run(req.user.id, req.user.email, now, expiresAt, row.id);
+    if (!result.changes) {
+      return res.status(409).json({ error: 'This license was just redeemed.' });
+    }
+
+    const fresh = db
+      .prepare(
+        `SELECT l.*, p.name AS product_name, o.number AS order_number
+         FROM licenses l
+         LEFT JOIN products p ON p.id = l.product_id
+         LEFT JOIN orders o ON o.id = l.order_id
+         WHERE l.id = ?`
+      )
+      .get(row.id);
+    audit(`user:${req.user.email}`, 'license.redeem', row.id, {
+      preview: row.key_preview,
+      product: row.product_id,
+      source: 'stock',
+      ip: req.ip,
+    });
+    let plain = null;
+    try {
+      plain = decryptText(fresh.key_enc);
+    } catch {
+      plain = null;
+    }
+    return res.json({
+      ok: true,
+      already: false,
+      source: 'stock',
+      license: serializeLicenseForUser(fresh),
+      key: plain,
+    });
+  }
+);
 
 router.get('/orders/:number', requireUser, (req, res) => {
   const order = getOrderByNumber(req.params.number);

@@ -22,6 +22,7 @@ const {
   serializeLicenseAdmin,
   revokeLicensesForOrder,
   issueStockKey,
+  issueKey,
   licenseStatus,
   fulfillOrder,
 } = require('./orders');
@@ -281,6 +282,111 @@ router.post('/licenses/generate', (req, res) => {
 
   audit('admin', 'license.restock', product.slug, { quantity, durationDays, stockCount });
   res.status(201).json({ keys: created, product: product.name, durationDays, stockCount });
+});
+
+/* Giveaway handout: bind a stock key to an email (or mint one when the shelf
+   is empty) and return the plaintext once so it can be pasted into a DM. */
+router.post('/licenses/redeem', (req, res) => {
+  const email = normalizeEmail(String(req.body?.email || ''));
+  if (!validEmail(email)) {
+    return res.status(400).json({ error: 'Enter the winner\'s email address.' });
+  }
+  const product = getProduct(req.body?.productId || '');
+  if (!product) return res.status(404).json({ error: 'Product not found.' });
+
+  const user = db
+    .prepare('SELECT id, email, blacklisted FROM users WHERE lower(email) = lower(?)')
+    .get(email);
+  if (user?.blacklisted) {
+    return res.status(403).json({ error: 'That account is suspended.' });
+  }
+
+  let overrideSet = false;
+  let durationDays;
+  const rawDuration = req.body?.durationDays;
+  if (rawDuration !== undefined && rawDuration !== null && rawDuration !== '') {
+    overrideSet = true;
+    durationDays =
+      String(rawDuration).toLowerCase() === 'lifetime'
+        ? null
+        : Math.max(1, Math.min(3650, Number(rawDuration) || 0));
+  }
+
+  const note = String(req.body?.note || '').slice(0, 300) || null;
+  const now = Date.now();
+  let row = db
+    .prepare(
+      "SELECT * FROM licenses WHERE product_id = ? AND status = 'stock' ORDER BY issued_at ASC LIMIT 1"
+    )
+    .get(product.id);
+  let source = 'stock';
+  let key = null;
+
+  if (row) {
+    key = decryptText(row.key_enc);
+    const days = overrideSet ? durationDays : row.duration_days;
+    const expiresAt = days === null || days === undefined
+      ? null
+      : now + Number(days) * 86_400_000;
+    const result = db
+      .prepare(
+        `UPDATE licenses
+            SET status = 'active', email = ?, user_id = ?, issued_at = ?, expires_at = ?,
+                duration_days = ?, note = COALESCE(?, note)
+          WHERE id = ? AND status = 'stock'`
+      )
+      .run(email, user?.id || null, now, expiresAt, days ?? null, note, row.id);
+    if (!result.changes) {
+      return res.status(409).json({ error: 'That stock key was just taken. Try again.' });
+    }
+    row = db
+      .prepare(
+        `SELECT l.*, p.name AS product_name
+         FROM licenses l LEFT JOIN products p ON p.id = l.product_id
+         WHERE l.id = ?`
+      )
+      .get(row.id);
+  } else {
+    source = 'generated';
+    const issued = issueKey({
+      product,
+      userId: user?.id || null,
+      durationDays: overrideSet ? durationDays : product.durationDays,
+      email,
+      note,
+    });
+    key = issued.key;
+    row = db
+      .prepare(
+        `SELECT l.*, p.name AS product_name
+         FROM licenses l LEFT JOIN products p ON p.id = l.product_id
+         WHERE l.id = ?`
+      )
+      .get(issued.license.id);
+  }
+
+  audit('admin', 'license.redeem', row.key_preview, {
+    email,
+    product: product.slug,
+    source,
+    licenseId: row.id,
+  });
+  const remaining = db
+    .prepare("SELECT COUNT(*) AS c FROM licenses WHERE product_id = ? AND status = 'stock'")
+    .get(product.id).c;
+
+  return res.status(201).json({
+    ok: true,
+    source,
+    key,
+    licenseId: row.id,
+    email,
+    productName: row.product_name || product.name,
+    durationDays: row.duration_days ?? null,
+    expiresAt: row.expires_at,
+    issuedAt: row.issued_at,
+    stockRemaining: remaining,
+  });
 });
 
 router.post('/licenses/:id/revoke', (req, res) => {

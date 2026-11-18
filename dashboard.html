@@ -53,6 +53,28 @@
         <a class="btn btn-primary" href="/setup.html">Open setup guide</a>
       </section>
 
+      <section class="panel" style="margin-bottom:1.25rem">
+        <div class="panel-head">
+          <h2>Redeem a key</h2>
+          <span class="sub">Giveaways</span>
+        </div>
+        <p class="form-note" style="margin-bottom:.8rem">
+          Won a giveaway? Paste the key exactly as it was sent. It attaches to this account instantly.
+        </p>
+        <form id="redeem-form" autocomplete="off" style="display:grid;gap:.75rem;max-width:680px">
+          <div class="form-error" id="redeem-error" role="alert"></div>
+          <div class="field" style="margin:0">
+            <label for="redeem-key">License key</label>
+            <input class="input mono" id="redeem-key" name="key" placeholder="KT-XXXXXX-XXXXXX"
+              maxlength="64" spellcheck="false" autocapitalize="characters" required>
+          </div>
+          <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit" id="redeem-submit">Redeem key</button>
+            <span class="form-note" id="redeem-result" hidden></span>
+          </div>
+        </form>
+      </section>
+
       <section class="panel" id="pending-panel" hidden style="margin-bottom:1.25rem">
         <div class="panel-head">
           <h2>Awaiting payment</h2>
@@ -75,6 +97,6 @@
 
   <script src="/assets/config.js?v=21"></script>
   <script src="/assets/app.js?v=21"></script>
-  <script src="/assets/dashboard.js?v=22"></script>
+  <script src="/assets/dashboard.js?v=23"></script>
 </body>
 </html>
