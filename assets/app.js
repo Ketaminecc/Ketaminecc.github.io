@@ -158,16 +158,20 @@
   };
 
   KET.copy = async function copy(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
+    const value = String(text ?? '');
+    if (!value) return false;
+
+    const legacyCopy = () => {
       const area = document.createElement('textarea');
-      area.value = text;
+      area.value = value;
+      area.setAttribute('readonly', '');
       area.style.position = 'fixed';
+      area.style.top = '-1000px';
       area.style.opacity = '0';
       document.body.appendChild(area);
+      area.focus();
       area.select();
+      area.setSelectionRange(0, value.length);
       let ok = false;
       try {
         ok = document.execCommand('copy');
@@ -176,6 +180,16 @@
       }
       area.remove();
       return ok;
+    };
+
+    /* navigator.clipboard is missing on plain-HTTP origins, which is exactly
+       how the Pages site is served while its certificate is pending. */
+    if (!window.isSecureContext || !navigator.clipboard?.writeText) return legacyCopy();
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      return legacyCopy();
     }
   };
 
