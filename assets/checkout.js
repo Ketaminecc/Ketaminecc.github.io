@@ -23,7 +23,7 @@
   const methodMeta = {
     cashapp: ['Cash App', 'Send to'],
     paypal: ['PayPal', 'Pay with your PayPal account'],
-    crypto: ['Crypto', 'BTC / ETH / USDT'],
+    crypto: ['Crypto', 'BTC / ETH / USDT · live amount on the payment page'],
   };
 
   function renderManualMethods() {

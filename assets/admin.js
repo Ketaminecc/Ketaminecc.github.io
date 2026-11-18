@@ -706,6 +706,9 @@
     $('#setting-manual-enabled').checked = Boolean(data.manualPayments);
     $('#setting-cashapp').value = data.manualCashapp || '';
     $('#setting-paypal').value = data.manualPaypal || '';
+    $('#setting-btc').value = data.manualBtc || '';
+    $('#setting-eth').value = data.manualEth || '';
+    $('#setting-usdt').value = data.manualUsdt || '';
     $('#setting-crypto').value = data.manualCrypto || '';
     $('#setting-manual-instructions').value = data.manualInstructions || '';
     $('#setting-webhook').value = '';
@@ -720,10 +723,12 @@
     $('#bot-state').textContent = data.botSecretConfigured ? 'Secret configured' : 'Missing secret';
 
     const manualBanner = $('#manual-banner');
-    const manualReady = Boolean(data.manualCashapp || data.manualPaypal || data.manualCrypto);
+    const cryptoReady = Boolean(data.manualBtc || data.manualEth || data.manualUsdt || data.manualCrypto);
+    const manualReady = Boolean(data.manualCashapp || data.manualPaypal || cryptoReady);
+    const methodCount = [data.manualCashapp, data.manualPaypal, cryptoReady].filter(Boolean).length;
     manualBanner.className = data.manualPayments && manualReady ? 'banner info' : 'banner warn';
     manualBanner.textContent = data.manualPayments && manualReady
-      ? `Manual checkout is live · ${[data.manualCashapp, data.manualPaypal, data.manualCrypto].filter(Boolean).length} method(s) configured`
+      ? `Manual checkout is live · ${methodCount} method(s) configured`
       : 'Manual checkout is off. Add Cash App, PayPal, or crypto details and enable it.';
 
     const stripeBanner = $('#stripe-banner');
@@ -731,7 +736,9 @@
     const sourceLabel = data.stripeSource === 'env' ? 'server/.env' : 'admin console';
     stripeBanner.textContent = data.stripeConfigured
       ? `Connected · key from ${sourceLabel}${data.stripeWebhookConfigured ? ' · webhook signing enabled' : ' · webhook secret missing'}`
-      : `Stripe is not configured. Checkout uses ${data.demoMode ? 'demo mode' : 'disabled mode'}.`;
+      : data.paymentMode === 'manual'
+        ? 'Stripe is parked. Manual checkout is live and takes priority.'
+        : `Stripe is not configured. Checkout uses ${data.demoMode ? 'demo mode' : 'disabled mode'}.`;
     $('#setting-stripe-key').value = '';
     $('#setting-stripe-webhook').value = '';
     $('#setting-stripe-endpoint').value = data.stripeWebhookUrl || '';
@@ -772,6 +779,9 @@
           manualPayments: $('#setting-manual-enabled').checked,
           manualCashapp: $('#setting-cashapp').value.trim(),
           manualPaypal: $('#setting-paypal').value.trim(),
+          manualBtc: $('#setting-btc').value.trim(),
+          manualEth: $('#setting-eth').value.trim(),
+          manualUsdt: $('#setting-usdt').value.trim(),
           manualCrypto: $('#setting-crypto').value.trim(),
           manualInstructions: $('#setting-manual-instructions').value.trim(),
           discordTicketUrl: $('#setting-ticket').value.trim(),

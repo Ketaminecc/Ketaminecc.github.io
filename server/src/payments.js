@@ -8,14 +8,23 @@ function value(key) {
   return String(getSetting(key, '') || '').trim();
 }
 
+function cryptoConfig() {
+  return {
+    btc: value('manual_btc'),
+    eth: value('manual_eth'),
+    usdt: value('manual_usdt'),
+    note: value('manual_crypto'),
+  };
+}
+
 function manualConfig() {
   const cashapp = value('manual_cashapp');
   const paypal = value('manual_paypal');
-  const crypto = value('manual_crypto');
+  const crypto = cryptoConfig();
   const methods = [];
   if (cashapp) methods.push('cashapp');
   if (paypal) methods.push('paypal');
-  if (crypto) methods.push('crypto');
+  if (crypto.btc || crypto.eth || crypto.usdt || crypto.note) methods.push('crypto');
   return {
     enabled: value('manual_payments') === '1',
     cashapp,

@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=16">
+  <link rel="stylesheet" href="/assets/styles.css?v=17">
 </head>
 <body class="page-app app-page">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -51,7 +51,18 @@
           <div class="manual-amount"><span>Amount due</span><b id="manual-amount">—</b></div>
           <p class="manual-instructions" id="manual-instructions"></p>
           <div class="manual-links" id="manual-links"></div>
-          <pre class="manual-crypto" id="manual-crypto" hidden></pre>
+          <div class="crypto-box" id="crypto-box" hidden>
+            <div class="crypto-head">
+              <span class="crypto-title">Send one of these amounts</span>
+              <span class="crypto-updated" id="crypto-updated">Fetching live rates…</span>
+            </div>
+            <div class="crypto-assets" id="crypto-assets"></div>
+            <p class="crypto-note" id="crypto-note" hidden></p>
+            <div class="crypto-actions">
+              <button class="btn btn-subtle btn-small" type="button" id="crypto-refresh">Refresh amounts</button>
+              <span class="form-note">Rates move; send within a few minutes. Network fees are extra.</span>
+            </div>
+          </div>
           <a class="btn btn-ghost btn-block" id="ticket-link" target="_blank" rel="noopener" hidden>Open a Discord ticket</a>
 
           <div class="claim">
@@ -97,8 +108,8 @@
     </div>
   </main>
 
-  <script src="/assets/config.js?v=16"></script>
-  <script src="/assets/app.js?v=16"></script>
-  <script src="/assets/success.js?v=16"></script>
+  <script src="/assets/config.js?v=17"></script>
+  <script src="/assets/app.js?v=17"></script>
+  <script src="/assets/success.js?v=17"></script>
 </body>
 </html>

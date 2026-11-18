@@ -569,6 +569,9 @@ router.get('/settings', async (_req, res) => {
     manualPayments: getSetting('manual_payments', '0') === '1',
     manualCashapp: getSetting('manual_cashapp', ''),
     manualPaypal: getSetting('manual_paypal', ''),
+    manualBtc: getSetting('manual_btc', ''),
+    manualEth: getSetting('manual_eth', ''),
+    manualUsdt: getSetting('manual_usdt', ''),
     manualCrypto: getSetting('manual_crypto', ''),
     manualInstructions: getSetting('manual_instructions', ''),
     paymentMode: publicPaymentMode(),
@@ -590,6 +593,9 @@ router.put('/settings', (req, res) => {
     manualPayments,
     manualCashapp,
     manualPaypal,
+    manualBtc,
+    manualEth,
+    manualUsdt,
     manualCrypto,
     manualInstructions,
   } = req.body || {};
@@ -646,6 +652,40 @@ router.put('/settings', (req, res) => {
     }
   }
 
+  let nextBtc;
+  if (manualBtc !== undefined) {
+    let raw = String(manualBtc).trim();
+    if (raw) {
+      if (/^bc1/i.test(raw)) raw = raw.toLowerCase();
+      const bech32 = /^bc1[a-z0-9]{25,62}$/.test(raw);
+      const legacy = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(raw);
+      if (!bech32 && !legacy) {
+        return res.status(400).json({ error: 'Enter a valid Bitcoin address (bc1…, 1…, or 3…).' });
+      }
+      nextBtc = raw;
+    } else {
+      nextBtc = '';
+    }
+  }
+
+  let nextEth;
+  if (manualEth !== undefined) {
+    const raw = String(manualEth).trim();
+    if (raw && !/^0x[a-fA-F0-9]{40}$/.test(raw)) {
+      return res.status(400).json({ error: 'Enter a valid Ethereum address (0x…, 40 hex characters).' });
+    }
+    nextEth = raw;
+  }
+
+  let nextUsdt;
+  if (manualUsdt !== undefined) {
+    const raw = String(manualUsdt).trim();
+    if (raw && !/^0x[a-fA-F0-9]{40}$/.test(raw)) {
+      return res.status(400).json({ error: 'Enter a valid USDT ERC-20 address (0x…, 40 hex characters).' });
+    }
+    nextUsdt = raw;
+  }
+
   let nextCrypto;
   if (manualCrypto !== undefined) nextCrypto = String(manualCrypto).trim().slice(0, 800);
   let nextInstructions;
@@ -668,8 +708,19 @@ router.put('/settings', (req, res) => {
     manualPayments !== undefined ? Boolean(manualPayments) : getSetting('manual_payments', '0') === '1';
   const effectiveCashapp = nextCashapp !== undefined ? nextCashapp : getSetting('manual_cashapp', '');
   const effectivePaypal = nextPaypal !== undefined ? nextPaypal : getSetting('manual_paypal', '');
+  const effectiveBtc = nextBtc !== undefined ? nextBtc : getSetting('manual_btc', '');
+  const effectiveEth = nextEth !== undefined ? nextEth : getSetting('manual_eth', '');
+  const effectiveUsdt = nextUsdt !== undefined ? nextUsdt : getSetting('manual_usdt', '');
   const effectiveCrypto = nextCrypto !== undefined ? nextCrypto : getSetting('manual_crypto', '');
-  if (effectiveEnabled && !effectiveCashapp && !effectivePaypal && !effectiveCrypto) {
+  if (
+    effectiveEnabled &&
+    !effectiveCashapp &&
+    !effectivePaypal &&
+    !effectiveBtc &&
+    !effectiveEth &&
+    !effectiveUsdt &&
+    !effectiveCrypto
+  ) {
     return res.status(400).json({ error: 'Add at least one payment method before enabling manual payments.' });
   }
 
@@ -700,6 +751,9 @@ router.put('/settings', (req, res) => {
   }
   if (nextCashapp !== undefined) setSetting('manual_cashapp', nextCashapp);
   if (nextPaypal !== undefined) setSetting('manual_paypal', nextPaypal);
+  if (nextBtc !== undefined) setSetting('manual_btc', nextBtc);
+  if (nextEth !== undefined) setSetting('manual_eth', nextEth);
+  if (nextUsdt !== undefined) setSetting('manual_usdt', nextUsdt);
   if (nextCrypto !== undefined) setSetting('manual_crypto', nextCrypto);
   if (nextInstructions !== undefined) setSetting('manual_instructions', nextInstructions);
   if (manualPayments !== undefined) setSetting('manual_payments', manualPayments ? '1' : '0');
@@ -713,6 +767,9 @@ router.put('/settings', (req, res) => {
       manualPayments !== undefined ||
       nextCashapp !== undefined ||
       nextPaypal !== undefined ||
+      nextBtc !== undefined ||
+      nextEth !== undefined ||
+      nextUsdt !== undefined ||
       nextCrypto !== undefined ||
       nextInstructions !== undefined ||
       nextTicketUrl !== undefined,

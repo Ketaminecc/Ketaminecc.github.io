@@ -113,7 +113,9 @@ stays in the codebase and takes over again whenever manual checkout is switched 
 2. Fill in any combination of:
    - **Cash App cashtag** — e.g. `$yourname`; the pay page builds `https://cash.app/$yourname/5.99`.
    - **PayPal.me link** — e.g. `https://paypal.me/yourname`; the amount is appended.
-   - **Crypto addresses / instructions** — free text shown to the buyer (BTC, ETH, USDT, …).
+   - **Bitcoin / Ethereum / USDT addresses** — separate fields, validated before saving. USDT
+     is treated as **ERC-20 on Ethereum**; the payment page warns against other networks.
+   - **Crypto notes** — optional extra text shown with the addresses (network warnings, fees).
    - **Discord ticket URL** — optional; falls back to the Discord invite from the main settings.
    - **Checkout instructions** — optional extra text shown on the payment page.
 3. Tick **Enable manual checkout** and save. The server refuses to enable it when no method
@@ -127,7 +129,9 @@ While enabled, manual checkout **takes priority over Stripe**. `/api/site` repor
 1. Signed-in buyer picks a method on `checkout.html`.
 2. `POST /api/checkout` creates an `awaiting_payment` order and returns the order number.
 3. `checkout-success.html?order=…` shows the exact amount, order number, a payment link
-   (Cash App / PayPal) or copyable crypto details, and the ticket link.
+   (Cash App / PayPal) or live BTC / ETH / USDT amounts with copyable addresses, and the
+   ticket link. Crypto totals are converted from USD with cached Coinbase spot rates
+   (`GET /api/crypto/rates?amountCents=…`) and can be refreshed on the page.
 4. The buyer pays externally, then either submits a transaction ID / sender name on the page
    (`POST /api/orders/:number/claim`) or opens a Discord ticket with the order number.
 5. In **Admin → Orders**, filter **Awaiting payment**, verify the payment, then press
@@ -313,6 +317,7 @@ Other endpoints used by the site:
 POST /api/auth/register | login | logout | password
 GET  /api/me
 GET  /api/products
+GET  /api/crypto/rates?amountCents=599  live USD→BTC/ETH/USDT quote
 POST /api/checkout
 GET  /api/orders, /api/orders/:number
 POST /api/orders/:number/sync       reconcile a pending Stripe session

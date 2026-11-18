@@ -2303,17 +2303,136 @@ h3 {
   margin-bottom: 0.7rem;
 }
 
-.manual-crypto {
+.crypto-box {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.crypto-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+}
+
+.crypto-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.crypto-updated {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
+  color: var(--dim);
+}
+
+.crypto-assets {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.crypto-asset {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+  padding: 0.75rem 0.8rem;
+}
+
+.crypto-asset-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.crypto-code {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  color: var(--text-soft);
+}
+
+.crypto-name {
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+
+.crypto-amount {
+  margin: 0.3rem 0 0.15rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  word-break: break-all;
+}
+
+.crypto-amount span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.crypto-usd {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.crypto-address {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
   color: var(--text-soft);
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.8rem;
-  white-space: pre-wrap;
+  border-radius: 7px;
+  padding: 0.5rem 0.55rem;
   word-break: break-all;
-  margin-bottom: 0.7rem;
+}
+
+.crypto-buttons {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+}
+
+.crypto-buttons .btn {
+  font-size: 0.65rem;
+  padding: 0.38rem 0.55rem;
+}
+
+.crypto-note {
+  font-size: 0.68rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-top: 0.65rem;
+}
+
+.crypto-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+}
+
+.crypto-actions .form-note {
+  margin: 0;
+  flex: 1 1 220px;
+}
+
+.crypto-loading {
+  font-size: 0.76rem;
+  color: var(--muted);
+  padding: 0.4rem 0;
 }
 
 .claim {

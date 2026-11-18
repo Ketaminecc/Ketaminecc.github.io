@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=16">
+  <link rel="stylesheet" href="/assets/styles.css?v=17">
 </head>
 <body class="page-app" data-snow="off">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -323,8 +323,23 @@
                 <input class="input" id="setting-paypal" placeholder="https://paypal.me/yourname">
               </div>
               <div class="field">
-                <label for="setting-crypto">Crypto addresses / instructions</label>
-                <textarea class="input" id="setting-crypto" rows="3" maxlength="800" placeholder="BTC: bc1…&#10;ETH: 0x…&#10;USDT (TRC20): T…"></textarea>
+                <label for="setting-btc">Bitcoin address</label>
+                <input class="input mono" id="setting-btc" placeholder="bc1…" spellcheck="false">
+                <span class="hint">Bitcoin network only.</span>
+              </div>
+              <div class="field">
+                <label for="setting-eth">Ethereum address</label>
+                <input class="input mono" id="setting-eth" placeholder="0x…" spellcheck="false">
+                <span class="hint">Ethereum network only.</span>
+              </div>
+              <div class="field">
+                <label for="setting-usdt">USDT address (ERC-20)</label>
+                <input class="input mono" id="setting-usdt" placeholder="0x…" spellcheck="false">
+                <span class="hint">Ethereum network only. Never send USDT on Tron/TRC-20 or other chains.</span>
+              </div>
+              <div class="field">
+                <label for="setting-crypto">Crypto notes (optional)</label>
+                <textarea class="input" id="setting-crypto" rows="3" maxlength="800" placeholder="Buyer pays network fees. Send only on the network shown."></textarea>
               </div>
               <div class="field">
                 <label for="setting-ticket">Discord ticket URL</label>
@@ -333,10 +348,10 @@
               </div>
               <div class="field">
                 <label for="setting-manual-instructions">Checkout instructions</label>
-                <textarea class="input" id="setting-manual-instructions" rows="2" maxlength="600"></textarea>
+                <textarea class="input" id="setting-manual-instructions" rows="3" maxlength="600"></textarea>
               </div>
               <button class="btn btn-primary btn-small" type="submit" id="manual-submit">Save manual payments</button>
-              <p class="form-note" style="margin-top:.6rem">Buyer sends the exact amount with the order number, then submits a claim or opens a ticket. You confirm in Orders.</p>
+              <p class="form-note" style="margin-top:.6rem">Buyer sends the exact amount with the order number, then submits a claim or opens a ticket. You confirm in Orders. Crypto totals are converted to BTC / ETH / USDT with live Coinbase rates on the payment page.</p>
             </form>
           </div>
 
@@ -496,8 +511,8 @@
     </div>
   </div>
 
-  <script src="/assets/config.js?v=16"></script>
-  <script src="/assets/app.js?v=16"></script>
-  <script src="/assets/admin.js?v=16"></script>
+  <script src="/assets/config.js?v=17"></script>
+  <script src="/assets/app.js?v=17"></script>
+  <script src="/assets/admin.js?v=17"></script>
 </body>
 </html>

@@ -27,6 +27,7 @@ const {
 } = require('./orders');
 const { createCheckoutSession, retrieveCheckoutSession, stripeConfigured } = require('./stripe');
 const { manualConfig, publicManualConfig, publicPaymentMode } = require('./payments');
+const { cryptoRates, cryptoAmounts } = require('./rates');
 const { sendPaymentClaim } = require('./discord');
 
 const router = express.Router();
@@ -79,6 +80,30 @@ router.get('/site', (_req, res) => {
 router.get('/health', (_req, res) => {
   const row = db.prepare('SELECT 1 AS ok').get();
   res.json({ ok: row?.ok === 1, time: Date.now() });
+});
+
+/* USD → crypto quote for the manual payment page. The buyer still sends the
+   payment externally; this only translates the order total at a live rate. */
+router.get('/crypto/rates', rateLimit({ windowMs: 60_000, max: 60, key: 'crypto-rates' }), async (req, res) => {
+  const manual = manualConfig();
+  if (!manual.methods.includes('crypto')) {
+    return res.status(404).json({ error: 'Crypto payments are not configured.' });
+  }
+  const amountCents = Number(req.query.amountCents);
+  if (!Number.isFinite(amountCents) || amountCents < 50 || amountCents > 5_000_000) {
+    return res.status(400).json({ error: 'Enter a valid order total.' });
+  }
+  try {
+    const rates = await cryptoRates();
+    return res.json({
+      updatedAt: rates.updatedAt,
+      stale: Boolean(rates.stale),
+      assets: cryptoAmounts(Math.round(amountCents), manual.crypto, rates),
+    });
+  } catch (err) {
+    console.error('[crypto] rate fetch failed:', err.message);
+    return res.status(503).json({ error: 'Live crypto rates are unavailable right now.' });
+  }
 });
 
 router.get('/products', (_req, res) => {

@@ -14,7 +14,11 @@
   const manualAmount = document.getElementById('manual-amount');
   const manualInstructions = document.getElementById('manual-instructions');
   const manualLinks = document.getElementById('manual-links');
-  const manualCrypto = document.getElementById('manual-crypto');
+  const cryptoBox = document.getElementById('crypto-box');
+  const cryptoAssets = document.getElementById('crypto-assets');
+  const cryptoUpdated = document.getElementById('crypto-updated');
+  const cryptoNote = document.getElementById('crypto-note');
+  const cryptoRefresh = document.getElementById('crypto-refresh');
   const ticketLink = document.getElementById('ticket-link');
   const claimForm = document.getElementById('claim-form');
   const claimReference = document.getElementById('claim-reference');
@@ -26,6 +30,8 @@
   let manualSite = null;
   let manualMode = false;
   let timer = null;
+  let cryptoLoading = false;
+  let renderedCryptoKey = '';
 
   function showProblem(message) {
     pending.hidden = true;
@@ -65,6 +71,134 @@
     manualLinks.appendChild(link);
   }
 
+  function cryptoTime(ms) {
+    return new Date(ms).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function cryptoNoteText(crypto) {
+    const note = String(crypto?.note || '').trim();
+    const warning = 'USDT must be ERC-20 on Ethereum; other networks can lose the funds. Network fees are extra.';
+    if (!note) return `Send only on the network shown. ${warning}`;
+    return note.toLowerCase().includes('erc-20') || note.toLowerCase().includes('erc20')
+      ? note
+      : `${note} ${warning}`;
+  }
+
+  function cryptoPrice(price) {
+    return `$${Number(price).toLocaleString('en-US', {
+      maximumFractionDigits: Number(price) < 2 ? 4 : 2,
+    })}`;
+  }
+
+  function cryptoCard(asset, fallbackAmount = null) {
+    const esc = window.KET.escape;
+    const amountLine = fallbackAmount
+      ? `Send <span>${esc(fallbackAmount)}</span> worth`
+      : `${esc(asset.amountText)} <span>${esc(asset.code)}</span>`;
+    const detail = fallbackAmount
+      ? 'Live rate unavailable — send the USD equivalent.'
+      : `≈ ${window.KET.money(Math.round(asset.usdValue * 100), 'usd')} · 1 ${esc(
+          asset.code
+        )} = ${cryptoPrice(asset.usdPrice)}`;
+    const copyAmount = fallbackAmount
+      ? ''
+      : `<button class="btn btn-subtle btn-small" type="button" data-copy="${esc(
+          asset.amountText
+        )}" data-label="Amount">Copy amount</button>`;
+    return `<article class="crypto-asset">
+      <div class="crypto-asset-head">
+        <span class="crypto-code">${esc(asset.code)}</span>
+        <span class="crypto-name">${esc(asset.name)} · ${esc(asset.network)}</span>
+      </div>
+      <div class="crypto-amount">${amountLine}</div>
+      <div class="crypto-usd">${detail}</div>
+      <code class="crypto-address">${esc(asset.address)}</code>
+      <div class="crypto-buttons">
+        ${copyAmount}
+        <button class="btn btn-subtle btn-small" type="button" data-copy="${esc(
+          asset.address
+        )}" data-label="Address">Copy address</button>
+      </div>
+    </article>`;
+  }
+
+  function fallbackAssets(crypto) {
+    return [
+      crypto.btc && {
+        code: 'BTC',
+        name: 'Bitcoin',
+        network: 'Bitcoin network',
+        address: crypto.btc,
+      },
+      crypto.eth && {
+        code: 'ETH',
+        name: 'Ethereum',
+        network: 'Ethereum network',
+        address: crypto.eth,
+      },
+      crypto.usdt && {
+        code: 'USDT',
+        name: 'Tether',
+        network: 'Ethereum (ERC-20)',
+        address: crypto.usdt,
+      },
+    ].filter(Boolean);
+  }
+
+  function paintCrypto(data, crypto, order) {
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    if (!assets.length) {
+      paintCryptoFallback(crypto, order);
+      return;
+    }
+    cryptoAssets.innerHTML = assets.map((asset) => cryptoCard(asset)).join('');
+    cryptoUpdated.textContent = `Rates updated ${cryptoTime(data.updatedAt)}${
+      data.stale ? ' · cached' : ''
+    }`;
+    cryptoNote.hidden = false;
+    cryptoNote.textContent = cryptoNoteText(crypto);
+  }
+
+  function paintCryptoFallback(crypto, order) {
+    const assets = fallbackAssets(crypto);
+    const amount = window.KET.money(order.amountCents, order.currency);
+    cryptoAssets.innerHTML = assets.length
+      ? assets.map((asset) => cryptoCard(asset, amount)).join('')
+      : '';
+    cryptoUpdated.textContent = assets.length ? 'Live rates unavailable' : '';
+    cryptoNote.hidden = false;
+    cryptoNote.textContent = cryptoNoteText(crypto);
+  }
+
+  async function renderCrypto(order, manual, force = false) {
+    const crypto = (manual && manual.crypto) || {};
+    const key = `${order.number}:${order.amountCents}`;
+    cryptoBox.hidden = false;
+    if (!force && renderedCryptoKey === key) return;
+    if (!fallbackAssets(crypto).length) {
+      renderedCryptoKey = key;
+      cryptoAssets.innerHTML = '';
+      cryptoUpdated.textContent = '';
+      cryptoNote.hidden = false;
+      cryptoNote.textContent = cryptoNoteText(crypto);
+      return;
+    }
+    if (cryptoLoading) return;
+    cryptoLoading = true;
+    cryptoAssets.innerHTML = '<div class="crypto-loading">Fetching live BTC / ETH / USDT amounts…</div>';
+    cryptoUpdated.textContent = 'Fetching live rates…';
+    try {
+      const data = await window.KET.api(`/api/crypto/rates?amountCents=${order.amountCents}`);
+      paintCrypto(data, crypto, order);
+      renderedCryptoKey = key;
+    } catch (err) {
+      paintCryptoFallback(crypto, order);
+      renderedCryptoKey = key;
+    } finally {
+      cryptoLoading = false;
+    }
+  }
+
   function renderManual(order, site) {
     currentOrder = order;
     manualMode = true;
@@ -80,7 +214,10 @@
     const methodLabel = method === 'cashapp' ? 'Cash App' : method === 'paypal' ? 'PayPal' : method === 'crypto' ? 'crypto' : 'the payment method';
 
     title.textContent = 'Complete payment.';
-    sub.textContent = `Send ${amount} with ${methodLabel}, include your order number, then confirm below.`;
+    sub.textContent =
+      method === 'crypto'
+        ? `Send ${amount} worth of BTC, ETH, or USDT using one of the amounts below.`
+        : `Send ${amount} with ${methodLabel}, include your order number, then confirm below.`;
     document.getElementById('success-icon').textContent = '$';
     manualOrder.textContent = order.number;
     manualAmount.textContent = amount;
@@ -89,25 +226,18 @@
       'Pay the exact amount, include your order number in the note, then submit the transaction ID or open a Discord ticket.';
 
     manualLinks.innerHTML = '';
-    manualCrypto.hidden = true;
-    manualCrypto.textContent = '';
+    cryptoBox.hidden = true;
 
     if (method === 'cashapp' && manual.cashapp) {
       addManualLink(`https://cash.app/${manual.cashapp}/${dollars}`, `Pay ${amount} with Cash App`);
     } else if (method === 'paypal' && manual.paypal) {
       addManualLink(`${String(manual.paypal).replace(/\/+$/, '')}/${dollars}`, `Pay ${amount} with PayPal`);
-    } else if (method === 'crypto' && manual.crypto) {
-      manualCrypto.hidden = false;
-      manualCrypto.textContent = manual.crypto;
-      const copy = document.createElement('button');
-      copy.type = 'button';
-      copy.className = 'btn btn-subtle btn-block';
-      copy.textContent = 'Copy crypto details';
-      copy.addEventListener('click', async () => {
-        const ok = await window.KET.copy(manual.crypto);
-        window.KET.toast(ok ? 'Crypto details copied.' : 'Copy failed.', ok ? 'ok' : 'error');
-      });
-      manualLinks.appendChild(copy);
+    } else if (method === 'crypto') {
+      const crypto = manual.crypto || {};
+      if (crypto.btc || crypto.eth || crypto.usdt || crypto.note) {
+        cryptoBox.hidden = false;
+        renderCrypto(order, manual);
+      }
     }
 
     const ticketUrl = manual.ticketUrl || (site && site.discordInvite) || '';
@@ -205,6 +335,17 @@
     if (!currentOrder) return;
     const ok = await window.KET.copy(currentOrder.number);
     window.KET.toast(ok ? 'Order number copied.' : 'Could not copy the order number.', ok ? 'ok' : 'error');
+  });
+
+  cryptoAssets.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-copy]');
+    if (!btn) return;
+    const ok = await window.KET.copy(btn.getAttribute('data-copy') || '');
+    window.KET.toast(ok ? `${btn.dataset.label || 'Value'} copied.` : 'Could not copy.', ok ? 'ok' : 'error');
+  });
+
+  cryptoRefresh.addEventListener('click', () => {
+    if (currentOrder) renderCrypto(currentOrder, manualSite?.manual || {}, true);
   });
 
   claimForm.addEventListener('submit', async (event) => {

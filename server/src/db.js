@@ -187,6 +187,9 @@ const defaults = {
   manual_payments: '0',
   manual_cashapp: '',
   manual_paypal: '',
+  manual_btc: '',
+  manual_eth: '',
+  manual_usdt: '',
   manual_crypto: '',
   manual_instructions:
     'Pay the exact amount, include your order number in the note, then submit the transaction ID or open a Discord ticket.',
