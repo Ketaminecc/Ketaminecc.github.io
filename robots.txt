@@ -3,3 +3,4 @@ Allow: /
 Disallow: /admin.html
 Disallow: /account.html
 Disallow: /dashboard.html
+Disallow: /setup.html
