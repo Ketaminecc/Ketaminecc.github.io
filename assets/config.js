@@ -6,7 +6,7 @@
 (function () {
   if (window.KET_API_BASE !== undefined) return;
 
-  const TUNNEL_API = 'https://b12164f7be9d01.app.lhr.life';
+  const TUNNEL_API = 'https://f8724c65dd65c5.app.lhr.life';
 
   /* Ask Pages for the current tunnel. The JSON is fetched with a unique query
      and no-store so a rotated hostname is not hidden by a cached config.js. */
