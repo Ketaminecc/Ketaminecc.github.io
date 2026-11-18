@@ -1,8 +1,12 @@
 # ── Ketamine.cc tunnel watchdog ───────────────────────────────────────────────
-# Keeps the local API server and the tunnel alive, and syncs the public tunnel
-# hostname into assets/config.js (published to GitHub Pages) and server/.env
-# (used for Stripe return URLs). Tunnelmole is the primary provider because its
-# free hostname lasts until the process exits; localhost.run is the fallback.
+# Keeps the local API server and a Cloudflare Quick Tunnel alive, and syncs the
+# public hostname into assets/config.js + assets/api-base.json (published to
+# GitHub Pages), server/.env (used for payment return URLs), and the desktop
+# client's api.txt / api.cache.txt.
+#
+# Quick Tunnels need no Cloudflare account, expose no public IP, and keep one
+# hostname for the lifetime of the cloudflared process. Two tunnels run side by
+# side so a rotation can promote a proven standby instead of waiting for Pages.
 #
 # Start it with:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\tunnel-watchdog.ps1
@@ -16,13 +20,13 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+$ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Git = 'C:\Program Files\Git\cmd\git.exe'
-$Ssh = 'C:\Windows\System32\OpenSSH\ssh.exe'
 $Node = 'node'
-# tunnelmole keeps one long-lived outbound connection, so the public hostname
-# stops rotating every couple of minutes. localhost.run remains as a fallback.
-$TunnelmoleScript = 'C:\Users\angel\AppData\Roaming\npm\node_modules\tunnelmole\dist\bin\tunnelmole.js'
+$Curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+$Cloudflared = Join-Path $env:LOCALAPPDATA 'cloudflared\cloudflared.exe'
+$CloudflaredDownload = 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe'
 
 $LogDir = Join-Path $RepoRoot 'logs'
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
@@ -42,9 +46,11 @@ if ((Test-Path $Log) -and ((Get-Item $Log).Length -gt 2MB)) {
 }
 
 # ── Single instance ──────────────────────────────────────────────────────────
-$running = Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
-  Where-Object { $_.CommandLine -like '*tunnel-watchdog.ps1*' -and $_.ProcessId -ne $PID }
-if ($running) {
+# A named mutex is immune to command-line false positives: launcher shells and
+# diagnostic commands mention this script in their own arguments, which used to
+# make a fresh watchdog exit immediately.
+$script:InstanceMutex = New-Object System.Threading.Mutex($false, 'KetamineTunnelWatchdog')
+if (-not $script:InstanceMutex.WaitOne(0)) {
   exit
 }
 
@@ -59,10 +65,36 @@ function Test-LocalApi {
   }
 }
 
+function Get-PublicDnsAddress([string]$HostName) {
+  # Ask a public resolver directly. The router in front of this PC caches the
+  # first NXDOMAIN for a fresh Quick Tunnel name for several minutes, and that
+  # cache would otherwise make a healthy tunnel look dead and trigger churn.
+  foreach ($server in @('1.1.1.1', '8.8.8.8')) {
+    try {
+      $answers = Resolve-DnsName -Name $HostName -Server $server -Type A -DnsOnly -ErrorAction Stop
+      $ip = $answers | Where-Object { $_.IPAddress } | Select-Object -First 1 -ExpandProperty IPAddress
+      if ($ip) { return $ip }
+    } catch {
+      # try the next resolver
+    }
+  }
+  return $null
+}
+
 function Test-PublicApi([string]$Url) {
   if (-not $Url) { return $false }
+  $stamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
   try {
-    $r = Invoke-RestMethod -Uri "$Url/api/health" -TimeoutSec 15
+    $uri = [uri]$Url
+    if ($uri.Host -like '*.trycloudflare.com' -and (Test-Path $Curl)) {
+      $ip = Get-PublicDnsAddress $uri.Host
+      if (-not $ip) { return $false }
+      $body = (& $Curl --noproxy '*' --resolve "$($uri.Host):443:$ip" -sS -m 12 "$Url/api/health?t=$stamp" 2>$null | Out-String).Trim()
+      if ($LASTEXITCODE -ne 0 -or -not $body) { return $false }
+      $r = $body | ConvertFrom-Json -ErrorAction Stop
+      return [bool]$r.ok
+    }
+    $r = Invoke-RestMethod -Uri "$Url/api/health?t=$stamp" -TimeoutSec 8
     return [bool]$r.ok
   } catch {
     return $false
@@ -74,18 +106,21 @@ function Get-ApiProcess {
     Where-Object { $_.CommandLine -like '*src/server.js*' }
 }
 
-function Get-LocalhostRunProcess {
-  Get-CimInstance Win32_Process -Filter "Name = 'ssh.exe'" |
-    Where-Object { $_.CommandLine -like '*localhost.run*' }
-}
-
-function Get-TunnelmoleProcess {
-  Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
-    Where-Object { $_.CommandLine -like '*tunnelmole*dist*bin*tunnelmole.js*' }
-}
-
 function Get-TunnelProcess {
-  @(Get-TunnelmoleProcess) + @(Get-LocalhostRunProcess)
+  Get-CimInstance Win32_Process -Filter "Name = 'cloudflared.exe'"
+}
+
+function Ensure-Cloudflared {
+  if (Test-Path $Cloudflared) { return $true }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Cloudflared) | Out-Null
+  Write-Log "cloudflared is missing; downloading to $Cloudflared"
+  try {
+    Invoke-WebRequest -Uri $CloudflaredDownload -OutFile $Cloudflared -TimeoutSec 180 -UseBasicParsing
+    if (Test-Path $Cloudflared) { return $true }
+  } catch {
+    Write-Log "cloudflared download failed: $($_.Exception.Message)"
+  }
+  return $false
 }
 
 function Start-Api {
@@ -107,89 +142,83 @@ function Start-Api {
   return $false
 }
 
-function Start-Tunnelmole {
-  $out = Join-Path $LogDir 'tunnelmole.out.log'
-  $err = Join-Path $LogDir 'tunnelmole.err.log'
+function Stop-TunnelInstance($Instance) {
+  if ($Instance -and $Instance.Pid) {
+    Stop-Process -Id $Instance.Pid -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Start-CloudflaredInstance([string]$Name) {
+  if (-not (Ensure-Cloudflared)) { return $null }
+
+  $out = Join-Path $LogDir "cloudflared.$Name.out.log"
+  $err = Join-Path $LogDir "cloudflared.$Name.err.log"
   Remove-Item -Path $out, $err -Force -ErrorAction SilentlyContinue
-  if (-not (Test-Path $TunnelmoleScript)) {
-    Write-Log "Tunnelmole script is missing: $TunnelmoleScript"
+
+  Write-Log "Opening Cloudflare $Name tunnel"
+  $process = Start-Process -FilePath $Cloudflared `
+    -ArgumentList @('tunnel', '--url', "http://127.0.0.1:$LocalPort", '--no-autoupdate') `
+    -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+
+  $url = $null
+  for ($i = 0; $i -lt 45; $i++) {
+    Start-Sleep -Seconds 1
+    if ($process.HasExited) { break }
+    $text = [string](Get-Content -Path $err -Raw -ErrorAction SilentlyContinue) +
+      "`n" + [string](Get-Content -Path $out -Raw -ErrorAction SilentlyContinue)
+    $match = [regex]::Match($text, 'https://[a-z0-9-]+\.trycloudflare\.com')
+    if ($match.Success) {
+      $url = $match.Value.TrimEnd('.', ',', ')', '"', "'")
+      break
+    }
+  }
+
+  if (-not $url) {
+    Write-Log "Cloudflare $Name did not report a hostname"
+    Stop-TunnelInstance ([pscustomobject]@{ Pid = $process.Id })
     return $null
   }
 
-  Write-Log 'Opening Tunnelmole tunnel'
-  $env:TUNNELMOLE_TELEMETRY = '0'
-  Start-Process -FilePath $Node -ArgumentList @($TunnelmoleScript, "$LocalPort") `
-    -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err | Out-Null
-
-  for ($i = 0; $i -lt 45; $i++) {
-    Start-Sleep -Seconds 1
-    if (-not (Test-Path $out)) { continue }
-    $text = [string](Get-Content -Path $out -Raw -ErrorAction SilentlyContinue)
-    $match = [regex]::Match($text, 'https://[A-Za-z0-9.-]+\.tunnelmole\.net')
-    if ($match.Success) {
-      $url = $match.Value.TrimEnd('.', ',', ')', '"', "'")
-      Write-Log "Tunnel registered: $url"
-      return $url
+  # Do not publish a hostname before it actually reaches the API. This also
+  # gives the standby a proven health check before it is offered as failover.
+  for ($i = 0; $i -lt 24; $i++) {
+    if (Test-PublicApi $url) {
+      Write-Log "Cloudflare $Name registered: $url"
+      return [pscustomobject]@{ Name = $Name; Pid = $process.Id; Url = $url }
     }
+    Start-Sleep -Seconds 5
   }
 
-  Write-Log 'Tunnelmole did not report a hostname'
-  Get-TunnelmoleProcess | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Write-Log "Cloudflare $Name registered but is not healthy: $url"
+  Stop-TunnelInstance ([pscustomobject]@{ Pid = $process.Id })
   return $null
 }
 
-function Start-LocalhostRun {
-  $out = Join-Path $LogDir 'tunnel.out.log'
-  $err = Join-Path $LogDir 'tunnel.err.log'
-  Remove-Item -Path $out, $err -Force -ErrorAction SilentlyContinue
-
-  $sshArgs = @(
-    '-T',
-    '-o', 'StrictHostKeyChecking=accept-new',
-    '-o', 'ServerAliveInterval=30',
-    '-o', 'ServerAliveCountMax=3',
-    '-o', 'ExitOnForwardFailure=yes',
-    '-R', "80:127.0.0.1:$LocalPort",
-    'nokey@localhost.run',
-    '--', '--output', 'json'
-  )
-
-  Write-Log 'Opening SSH tunnel'
-  Start-Process -FilePath $Ssh -ArgumentList $sshArgs -WindowStyle Hidden `
-    -RedirectStandardOutput $out -RedirectStandardError $err | Out-Null
-
-  for ($i = 0; $i -lt 45; $i++) {
-    Start-Sleep -Seconds 1
-    if (-not (Test-Path $out)) { continue }
-    $text = [string](Get-Content -Path $out -Raw -ErrorAction SilentlyContinue)
-    $match = [regex]::Match($text, '"address":"([^"]+)"')
-    if ($match.Success) {
-      $url = 'https://' + $match.Groups[1].Value
-      Write-Log "Tunnel registered: $url"
-      return $url
-    }
-  }
-
-  Write-Log 'Tunnel did not report a hostname'
-  return $null
-}
-
-function Start-Tunnel {
+function Start-TunnelPair {
   Get-TunnelProcess | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Seconds 1
 
-  $url = Start-Tunnelmole
-  if ($url) { return $url }
+  $primary = Start-CloudflaredInstance 'primary'
+  $standby = $null
+  if ($primary) { $standby = Start-CloudflaredInstance 'standby' }
 
-  Write-Log 'Falling back to localhost.run'
-  return Start-LocalhostRun
+  if (-not $primary -and $standby) {
+    $primary = $standby
+    $standby = $null
+  }
+
+  if (-not $primary) {
+    Write-Log 'Cloudflare did not provide a tunnel; retrying'
+  }
+
+  return [pscustomobject]@{ Primary = $primary; Standby = $standby }
 }
 
 function Set-FileText([string]$Path, [string]$Text) {
   [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false)))
 }
 
-function Update-SiteConfig([string]$Url) {
+function Update-SiteConfig([string]$Url, [string[]]$Fallbacks) {
   $changed = $false
 
   $configPath = Join-Path $RepoRoot 'assets\config.js'
@@ -224,22 +253,31 @@ function Update-SiteConfig([string]$Url) {
   }
 
   $jsonPath = Join-Path $RepoRoot 'assets\api-base.json'
-  $json = "{`n  `"api`": `"$Url`"`n}`n"
+  $fallbackList = @($Fallbacks | Where-Object { $_ -and $_ -ne $Url } | Select-Object -Unique)
+  if ($fallbackList.Count -gt 0) {
+    $items = $fallbackList | ForEach-Object { "    `"$_`"" }
+    $json = "{`n  `"api`": `"$Url`",`n  `"fallbacks`": [`n" + ($items -join ",`n") + "`n  ]`n}`n"
+  } else {
+    $json = "{`n  `"api`": `"$Url`"`n}`n"
+  }
   $current = if (Test-Path $jsonPath) { [string](Get-Content -Path $jsonPath -Raw) } else { '' }
   if ($current.Trim() -ne $json.Trim()) {
     Set-FileText $jsonPath $json
     $changed = $true
   }
 
-  # The desktop client reads api.txt from the folder it was launched from, so
-  # a rotated tunnel reaches the shipped exe without a rebuild. Local file
-  # only: it never enters the Pages commit.
+  # The desktop client reads api.txt from the folder it was launched from, and
+  # caches the last good base in api.cache.txt. Writing both lets a shipped exe
+  # follow a rotated tunnel without a rebuild. Local files only: they never
+  # enter the Pages commit.
   if (Test-Path $PublicDir) {
-    $apiPath = Join-Path $PublicDir 'api.txt'
-    $currentApi = if (Test-Path $apiPath) { [string](Get-Content -Path $apiPath -Raw) } else { '' }
-    if ($currentApi.Trim() -ne $Url) {
-      Set-FileText $apiPath "$Url`n"
-      Write-Log "Wrote client api.txt -> $Url"
+    foreach ($name in @('api.txt', 'api.cache.txt')) {
+      $path = Join-Path $PublicDir $name
+      $currentApi = if (Test-Path $path) { [string](Get-Content -Path $path -Raw) } else { '' }
+      if ($currentApi.Trim() -ne $Url) {
+        Set-FileText $path "$Url`n"
+        Write-Log "Wrote client $name -> $Url"
+      }
     }
   }
 
@@ -275,9 +313,35 @@ function Publish-Config {
 
 # ── Main loop ────────────────────────────────────────────────────────────────
 
+$script:Primary = $null
+$script:Standby = $null
 $script:PublicUrl = $null
 $script:Failures = 0
-$lastPublish = [datetime]::MinValue
+$script:LastPublish = [datetime]::MinValue
+$script:LastStandbyAttempt = [datetime]::MinValue
+
+function Get-FallbackUrls {
+  if ($script:Standby -and $script:Standby.Url) { return @($script:Standby.Url) }
+  return @()
+}
+
+function Publish-Tunnels {
+  if (-not $script:Primary -or -not $script:Primary.Url) { return $false }
+  $previous = $script:PublicUrl
+  $script:PublicUrl = $script:Primary.Url
+  $fallbacks = Get-FallbackUrls
+  if (-not (Update-SiteConfig $script:PublicUrl $fallbacks)) { return $false }
+
+  if ($previous -ne $script:PublicUrl) {
+    Write-Log 'Primary API base changed; restarting API'
+    Start-Api | Out-Null
+  }
+  $suffix = if ($fallbacks.Count -gt 0) { " (standby: $($fallbacks -join ', '))" } else { ' (no standby)' }
+  Write-Log "Publishing API base $script:PublicUrl$suffix"
+  Publish-Config
+  $script:LastPublish = Get-Date
+  return $true
+}
 
 while ($true) {
   try {
@@ -288,39 +352,55 @@ while ($true) {
       Start-Api | Out-Null
     }
 
-    $hasTunnel = [bool](Get-TunnelProcess)
-    $publicOk = $false
-    if ($script:PublicUrl) {
-      $publicOk = Test-PublicApi $script:PublicUrl
-    }
-    if ($publicOk) {
+    if (-not $script:Primary) {
+      $pair = Start-TunnelPair
+      $script:Primary = $pair.Primary
+      $script:Standby = $pair.Standby
       $script:Failures = 0
-    } else {
-      $script:Failures++
-    }
-
-    # One failed health check is usually the edge warming up or a transient
-    # route change. Reconnecting on the first miss is what produced a new
-    # hostname every 100 seconds, so require two consecutive misses.
-    if (-not $script:PublicUrl -or -not $hasTunnel -or $script:Failures -ge 2) {
-      if ($hasTunnel) {
-        Write-Log "Tunnel is not reachable ($script:Failures checks); reconnecting"
+      if ($script:Primary) {
+        Publish-Tunnels | Out-Null
       } else {
-        Write-Log 'Tunnel process is gone; reconnecting'
+        Write-Log 'No tunnel is available; retrying'
       }
-      $script:Failures = 0
-      $url = Start-Tunnel
-      if ($url) {
-        $script:PublicUrl = $url
-        for ($i = 0; $i -lt 15; $i++) {
-          if (Test-PublicApi $url) { break }
-          Start-Sleep -Seconds 2
+    } else {
+      $primaryOk = Test-PublicApi $script:Primary.Url
+      $standbyOk = Test-PublicApi $script:Standby.Url
+
+      if ($primaryOk) {
+        $script:Failures = 0
+        $standbyBad = [bool]($script:Standby -and -not $standbyOk)
+        $standbyMissing = -not $script:Standby
+        # Quick Tunnels are unlimited enough for a spare, but do not spin up a
+        # new process every 20 seconds when a provider-side failure is ongoing.
+        if (($standbyMissing -or $standbyBad) -and ((Get-Date) - $script:LastStandbyAttempt).TotalMinutes -ge 5) {
+          $script:LastStandbyAttempt = Get-Date
+          if ($standbyBad) {
+            Write-Log 'Standby tunnel is unhealthy; replacing it'
+            Stop-TunnelInstance $script:Standby
+          } else {
+            Write-Log 'Opening a standby tunnel'
+          }
+          $script:Standby = Start-CloudflaredInstance 'standby'
+          Publish-Tunnels | Out-Null
         }
-        if (Update-SiteConfig $url) {
-          Write-Log 'Public API base changed; restarting API and publishing'
-          Start-Api | Out-Null
-          Publish-Config
-          $lastPublish = Get-Date
+      } elseif ($standbyOk) {
+        # Swap labels instead of killing the survivor. The former primary stays
+        # as the spare and can recover while it is off the published api field.
+        Write-Log 'Primary tunnel is unreachable; promoting standby'
+        $old = $script:Primary
+        $script:Primary = $script:Standby
+        $script:Standby = $old
+        $script:Failures = 0
+        Publish-Tunnels | Out-Null
+      } else {
+        $script:Failures++
+        if ($script:Failures -ge 2) {
+          Write-Log "No tunnel is reachable ($script:Failures checks); restarting both"
+          $script:Failures = 0
+          $pair = Start-TunnelPair
+          $script:Primary = $pair.Primary
+          $script:Standby = $pair.Standby
+          if ($script:Primary) { Publish-Tunnels | Out-Null }
         }
       }
     }
@@ -328,15 +408,18 @@ while ($true) {
     # Self-heal drift: the published files and .env must name the tunnel that is
     # actually live, even when the tunnel itself never dropped. Without this a
     # restart that rotates the hostname leaves Pages pointing at the old one.
-    if ($script:PublicUrl -and (Update-SiteConfig $script:PublicUrl)) {
-      Write-Log "Published files were stale; repointing at $script:PublicUrl"
-      Publish-Config
-      $lastPublish = Get-Date
+    if ($script:Primary) {
+      $fallbacks = Get-FallbackUrls
+      if (Update-SiteConfig $script:Primary.Url $fallbacks) {
+        Write-Log "Published files were stale; repointing at $($script:Primary.Url)"
+        Publish-Config
+        $script:LastPublish = Get-Date
+      }
     }
 
-    if ($script:PublicUrl -and ((Get-Date) - $lastPublish).TotalSeconds -gt 300) {
+    if ($script:Primary -and ((Get-Date) - $script:LastPublish).TotalSeconds -gt 300) {
       Publish-Config
-      $lastPublish = Get-Date
+      $script:LastPublish = Get-Date
     }
   } catch {
     Write-Log "Loop error: $($_.Exception.Message)"

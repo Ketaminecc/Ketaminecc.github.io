@@ -27,6 +27,19 @@
 
   const apiUrl = (path) => (/^https?:\/\//i.test(path) ? path : `${apiBase()}${path}`);
 
+  const safeMethod = (method) => {
+    const value = String(method || 'GET').toUpperCase();
+    return value === 'GET' || value === 'HEAD';
+  };
+
+  /* A tunnel edge can answer a dead hostname with 502/503/504, or with its own
+     HTML holding page and a 200. Neither response came from the API, so safe
+     reads can be retried against a freshly discovered hostname. */
+  const tunnelFailure = (res) => {
+    if (!res.ok) return res.status >= 500 || res.status === 0;
+    return /text\/html/i.test(res.headers.get('content-type') || '');
+  };
+
   KET.api = async function api(path, options = {}) {
     if (window.KET_API_READY) await window.KET_API_READY;
     const tokenKey = tokenKeyFor(path);
@@ -42,25 +55,45 @@
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(options.body);
     }
+
+    const send = () => fetch(apiUrl(path), opts);
+    const retryable = safeMethod(opts.method);
+
+    /* A tunnel rotation can invalidate the hostname mid-session. Refresh it and
+       retry safe reads once; never retry a POST (checkout must not run twice). */
+    const again = async () => {
+      const before = apiBase();
+      const refreshed = typeof window.KET_REFRESH_BASE === 'function'
+        ? await window.KET_REFRESH_BASE()
+        : false;
+      if (!(refreshed && apiBase() !== before)) {
+        /* Short hiccup: give a reconnect that is already in flight one moment
+           to finish before the second attempt. */
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
+      return send();
+    };
+
     let res;
     try {
-      res = await fetch(apiUrl(path), opts);
+      res = await send();
     } catch (err) {
-      /* A tunnel rotation can invalidate the hostname mid-session. Refresh it
-         and retry safe reads once; never retry a POST (checkout must not run twice). */
-      const method = String(opts.method || 'GET').toUpperCase();
-      if (method !== 'GET' && method !== 'HEAD') throw err;
-      const before = apiBase();
-      const refreshed = typeof window.KET_REFRESH_BASE === 'function' ? await window.KET_REFRESH_BASE() : false;
-      if (refreshed && apiBase() !== before) {
-        res = await fetch(apiUrl(path), opts);
-      } else {
-        /* Short tunnel hiccup: one delayed retry keeps pages from failing on a
-           reconnect that finishes between the first attempt and the refresh. */
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        res = await fetch(apiUrl(path), opts);
-      }
+      if (!retryable) throw err;
+      res = await again();
     }
+
+    if (retryable && tunnelFailure(res)) {
+      res = await again();
+    }
+
+    /* If a tunnel holding page survived the retry, fail loudly instead of
+       handing null to a page that expects JSON. */
+    if (/text\/html/i.test(res.headers.get('content-type') || '')) {
+      const error = new Error('The service is temporarily unreachable.');
+      error.status = 503;
+      throw error;
+    }
+
     let data = null;
     try {
       data = await res.json();
