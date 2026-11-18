@@ -169,6 +169,9 @@ every logon.
 
 - Tunnel: `ssh -T -R 80:127.0.0.1:3000 nokey@localhost.run -- --output json`
 - Tunnel hostnames rotate; do not hardcode one elsewhere.
+- `CORS_ORIGINS` must match the **exact scheme + host** the browser uses. While Pages is
+  HTTP-only (custom-domain certificate pending), include both `http://` and `https://`
+  variants or every browser API call fails with `Failed to fetch`.
 - `localhost` on Windows can resolve to IPv6, so always forward to `127.0.0.1`.
 - The PC must stay awake with the server and tunnel running.
 
