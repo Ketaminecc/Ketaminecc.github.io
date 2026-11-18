@@ -8,6 +8,7 @@ const { getOrderBySession, getOrderById, fulfillOrder } = require('./orders');
 const { originGuard, cors } = require('./security');
 const { stripe, stripeConfigured, webhookSecret, retrieveCheckoutSession } = require('./stripe');
 const { getWebhookUrl, isValidWebhook } = require('./discord');
+const { publicPaymentMode } = require('./payments');
 
 const app = express();
 app.disable('x-powered-by');
@@ -225,7 +226,18 @@ const server = app.listen(config.port, config.host, async () => {
   console.log(`  Local:    http://localhost:${config.port}`);
   console.log(`  API:      ${config.baseUrl}`);
   console.log(`  Site:     ${config.siteUrl}`);
-  console.log(`  Payments: ${stripeConfigured() ? 'Stripe' : config.demoMode ? 'DEMO MODE (no charges)' : 'DISABLED'}`);
+  const paymentMode = publicPaymentMode();
+  console.log(
+    `  Payments: ${
+      paymentMode === 'manual'
+        ? 'Manual (Cash App / PayPal / crypto)'
+        : paymentMode === 'stripe'
+          ? 'Stripe'
+          : paymentMode === 'demo'
+            ? 'DEMO MODE (no charges)'
+            : 'DISABLED'
+    }`
+  );
   console.log(`  Admin:    ${config.siteUrl}/admin.html`);
   const webhook = await getWebhookUrl().catch(() => null);
   console.log(`  Discord:  ${webhook && isValidWebhook(webhook) ? 'purchase log connected' : 'not configured'}`);
