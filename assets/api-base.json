@@ -1,6 +1,6 @@
 {
-  "api": "https://chapters-maintains-processors-murphy.trycloudflare.com",
+  "api": "https://disc-cleared-state-bought.trycloudflare.com",
   "fallbacks": [
-    "https://disc-cleared-state-bought.trycloudflare.com"
+    "https://chapters-maintains-processors-murphy.trycloudflare.com"
   ]
 }
