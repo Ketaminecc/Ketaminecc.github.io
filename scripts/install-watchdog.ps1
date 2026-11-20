@@ -21,7 +21,7 @@ Copy-Item -Path $source -Destination $target -Force
 Write-Host "Startup supervisor: $target"
 
 # Remove the task/shortcut experiments so only the Startup supervisor remains.
-foreach ($task in @('Ketaminecc Tunnel Watchdog Keepalive', 'Ketaminecc Tunnel Watchdog')) {
+foreach ($task in @('Ketaminecc Test Minute', 'Ketaminecc Tunnel Watchdog Keepalive', 'Ketaminecc Tunnel Watchdog')) {
   & cmd.exe /c "schtasks /delete /tn `"$task`" /f >nul 2>&1" | Out-Null
 }
 $shortcut = Join-Path $startup 'Ketaminecc Tunnel Watchdog.lnk'
