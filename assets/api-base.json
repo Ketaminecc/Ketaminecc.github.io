@@ -1,6 +1,6 @@
 {
-  "api": "https://biodiversity-rap-recommended-operators.trycloudflare.com",
+  "api": "https://ecology-nashville-changes-fairfield.trycloudflare.com",
   "fallbacks": [
-    "https://ecology-nashville-changes-fairfield.trycloudflare.com"
+    "https://biodiversity-rap-recommended-operators.trycloudflare.com"
   ]
 }
