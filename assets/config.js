@@ -13,7 +13,7 @@
 (function () {
   if (window.KET_API_BASE !== undefined) return;
 
-  const TUNNEL_API = 'https://ecology-nashville-changes-fairfield.trycloudflare.com';
+  const TUNNEL_API = 'https://liked-better-vital-ser.trycloudflare.com';
   const CACHE_KEY = 'ket.api-base';
   const PROBE_TIMEOUT = 4000;
   const DISCOVER_TIMEOUT = 4000;
