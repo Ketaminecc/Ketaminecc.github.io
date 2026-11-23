@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=24">
+  <link rel="stylesheet" href="/assets/styles.css?v=25">
 </head>
 <body class="page-app app-page">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -49,7 +49,7 @@
       <section class="panel setup-locked" id="setup-locked" hidden>
         <span class="setup-kicker">Active license required</span>
         <h2>Setup guide locked.</h2>
-        <p id="setup-locked-copy">The installation docs are available to accounts with an active license. If you just purchased, check your Keys page for the new key.</p>
+        <p id="setup-locked-copy">The install docs need an active license. Keys are on your Keys page.</p>
         <div class="setup-locked-actions">
           <a class="btn btn-primary" href="/dashboard.html">View license keys</a>
           <a class="btn btn-subtle" href="/#products">Buy a license</a>
@@ -61,12 +61,18 @@
           <span class="setup-kicker">Game docs</span>
           <nav class="docs-nav" aria-label="Game documentation">
             <button class="docs-link is-active" type="button" data-doc="cs2" aria-pressed="true">
-              <b>Counter-Strike 2</b>
-              <small>internal loader</small>
+              <img class="docs-link-icon" src="/assets/game-cs2.webp" alt="" width="34" height="34">
+              <span class="docs-link-copy">
+                <b>Counter-Strike 2</b>
+                <small>internal loader</small>
+              </span>
             </button>
             <button class="docs-link" type="button" data-doc="roblox" aria-pressed="false">
-              <b>Roblox</b>
-              <small>external build</small>
+              <img class="docs-link-icon" src="/assets/game-roblox.webp" alt="" width="34" height="34">
+              <span class="docs-link-copy">
+                <b>Roblox</b>
+                <small>external build</small>
+              </span>
             </button>
           </nav>
 
@@ -87,48 +93,39 @@
               </div>
               <span class="pill ok">Loader + in-game menu</span>
             </header>
-            <p class="docs-lead">
-              The CS2 build is an executable loader. It signs in with your key, downloads the current
-              module for your license and maps it into <code>cs2.exe</code>. The menu runs in game and
-              opens with <code>INSERT</code>.
-            </p>
+            <p class="docs-lead">Loader plus in-game menu. Sign in once; the module updates itself.</p>
 
-            <h3 class="docs-h" id="cs2-requirements">01 · Requirements</h3>
+            <h3 class="docs-h" id="cs2-requirements">01 · Needs</h3>
             <ul class="docs-list">
-              <li>Windows 10 or 11, 64-bit.</li>
-              <li>An active <b>CS2</b> license — a Roblox key is refused by this loader.</li>
-              <li>Antivirus real-time protection off, or the extracted folder excluded.</li>
-              <li>Microsoft Visual C++ Redistributable (x64).</li>
+              <li>Windows 10/11, 64-bit.</li>
+              <li>Active <b>CS2</b> key (a Roblox key is refused).</li>
+              <li>Antivirus off, or the folder excluded.</li>
             </ul>
             <div class="setup-actions">
-              <a class="btn btn-subtle btn-small" href="https://aka.ms/vs/17/release/vc_redist.x64.exe" target="_blank" rel="noopener">C++ redistributable</a>
-              <a class="btn btn-subtle btn-small" href="https://dotnet.microsoft.com/en-us/download" target="_blank" rel="noopener">.NET runtime</a>
+              <a class="btn btn-subtle btn-small" href="https://aka.ms/vs/17/release/vc_redist.x64.exe" target="_blank" rel="noopener">C++ redist x64</a>
             </div>
 
-            <h3 class="docs-h" id="cs2-download">02 · Download the CS2 loader</h3>
-            <p>
-              The archive contains the loader only. The module is pulled from the site on the first
-              inject and kept in a hidden cache, so updates always arrive without re-downloading the zip.
-            </p>
+            <h3 class="docs-h" id="cs2-download">02 · Download</h3>
+            <p>ZIP contains the loader, <code>models</code> and <code>hitsounds</code>. Extract it — never run it from inside the zip.</p>
             <div class="setup-actions">
               <button class="btn btn-primary btn-small" type="button" data-download="cs2">Download CS2 loader</button>
               <span class="setup-note">Windows x64 · ZIP</span>
             </div>
             <p class="setup-note" data-download-status aria-live="polite">Each click issues a private link that expires after one use.</p>
 
-            <h3 class="docs-h" id="cs2-install">03 · Install and sign in</h3>
+            <h3 class="docs-h" id="cs2-install">03 · Set up</h3>
             <ol class="docs-steps">
               <li>
-                <b>Extract to a permanent folder</b>
-                <p>Unzip the archive somewhere you will keep it, for example <code>Documents\ketamine</code>. Do not run it from the Downloads folder or from inside the zip.</p>
+                <b>Extract</b>
+                <p>Any permanent folder, e.g. <code>Documents\ketamine</code>.</p>
               </li>
               <li>
                 <b>Run as administrator</b>
-                <p>Right-click <code>Ketaminecc.exe</code> and choose <b>Run as administrator</b>. The loader needs the elevated token to open the game process; the manifest asks for it automatically.</p>
+                <p>Right-click <code>Ketaminecc.exe</code> → <b>Run as administrator</b>.</p>
               </li>
               <li>
                 <b>Sign in</b>
-                <p>Use the email on your order and paste the license key from your <a class="link" href="/dashboard.html">Keys page</a>. The loader verifies the key, binds it to this machine's HWID and fetches the current module.</p>
+                <p>Email from your order + key from <a class="link" href="/dashboard.html">Keys</a>.</p>
               </li>
             </ol>
             <div class="setup-credentials">
@@ -139,22 +136,22 @@
             <h3 class="docs-h" id="cs2-inject">04 · Inject</h3>
             <ol class="docs-steps">
               <li>
-                <b>Open CS2 through Steam</b>
-                <p>Start the game normally. The loader can launch it for you if it is closed.</p>
+                <b>Open CS2</b>
+                <p>Through Steam. The loader can start it for you.</p>
               </li>
               <li>
                 <b>Press Inject</b>
-                <p>The loader waits for <code>client.dll</code>, maps the cached module and closes itself once the image is in.</p>
+                <p>The loader maps the module and closes itself.</p>
               </li>
               <li>
                 <b>Open the menu</b>
-                <p>Press <code>INSERT</code> in game. Settings, ESP, aimbot, visuals and the hitsound picker live in the in-game menu, not the loader.</p>
+                <p><code>INSERT</code> in game.</p>
               </li>
             </ol>
 
             <div class="docs-callout">
-              <b>If injection fails</b>
-              <p>Open <code>loader.log</code> next to the loader. It names the step that failed — elevation, the license check, the module download or the mapping.</p>
+              <b>Failed?</b>
+              <p><code>loader.log</code> next to the exe names the step that failed.</p>
             </div>
           </article>
 
@@ -167,49 +164,46 @@
               </div>
               <span class="pill ice">External, no injector</span>
             </header>
-            <p class="docs-lead">
-              The Roblox build is a standalone external. It does not attach to the game process: keep
-              Roblox open and the menu draws over it. It opens with <code>RSHIFT</code>.
-            </p>
+            <p class="docs-lead">Standalone external. Roblox stays open; the menu draws over it.</p>
 
-            <h3 class="docs-h" id="roblox-requirements">01 · Requirements</h3>
+            <h3 class="docs-h" id="roblox-requirements">01 · Needs</h3>
             <ul class="docs-list">
-              <li>Windows 10 or 11, 64-bit.</li>
-              <li>An active <b>Roblox</b> license — a CS2 key is refused by this build.</li>
-              <li>Antivirus real-time protection off, or the extracted folder excluded.</li>
+              <li>Windows 10/11, 64-bit.</li>
+              <li>Active <b>Roblox</b> key (a CS2 key is refused).</li>
+              <li>Antivirus off, or the folder excluded.</li>
             </ul>
 
-            <h3 class="docs-h" id="roblox-download">02 · Download the Roblox build</h3>
-            <p>One archive, no separate module. Updates are a fresh download from this page.</p>
+            <h3 class="docs-h" id="roblox-download">02 · Download</h3>
+            <p>One ZIP, no separate module.</p>
             <div class="setup-actions">
               <button class="btn btn-primary btn-small" type="button" data-download="roblox">Download Roblox external</button>
               <span class="setup-note">Windows x64 · ZIP</span>
             </div>
             <p class="setup-note" data-download-status aria-live="polite">Each click issues a private link that expires after one use.</p>
 
-            <h3 class="docs-h" id="roblox-run">03 · Run it</h3>
+            <h3 class="docs-h" id="roblox-run">03 · Run</h3>
             <ol class="docs-steps">
               <li>
-                <b>Extract to a permanent folder</b>
-                <p>Unzip somewhere stable and keep the folder contents together.</p>
+                <b>Extract</b>
+                <p>Any permanent folder; keep the contents together.</p>
               </li>
               <li>
-                <b>Open Roblox first</b>
-                <p>Join the experience you want to use it in and leave the Roblox window running.</p>
+                <b>Open Roblox</b>
+                <p>Join the experience and leave the window running.</p>
               </li>
               <li>
-                <b>Start the external as administrator</b>
-                <p>Right-click the executable and choose <b>Run as administrator</b>, then sign in with the email and key on your order.</p>
+                <b>Run as administrator</b>
+                <p>Sign in with your order email + key.</p>
               </li>
               <li>
                 <b>Open the menu</b>
-                <p>Press <code>RSHIFT</code> in the Roblox window. The menu overlays the game and closes with the same key.</p>
+                <p><code>RSHIFT</code> in the Roblox window.</p>
               </li>
             </ol>
 
             <div class="docs-callout">
-              <b>Separate keys</b>
-              <p>A Roblox key only unlocks the Roblox build, and a CS2 key only unlocks the CS2 loader. Buy the game you actually play.</p>
+              <b>Keys are per game</b>
+              <p>A Roblox key only unlocks this build.</p>
             </div>
           </article>
         </div>

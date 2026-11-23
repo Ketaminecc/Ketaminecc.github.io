@@ -4208,8 +4208,9 @@ body.modal-open {
 }
 
 .docs-link {
-  display: grid;
-  gap: 0.08rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding: 0.6rem 0.7rem;
   border: 1px solid transparent;
   border-radius: 9px;
@@ -4218,6 +4219,22 @@ body.modal-open {
   text-align: left;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.docs-link-copy {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.docs-link-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+  background: #070a0f;
 }
 
 .docs-link b {
@@ -4434,8 +4451,7 @@ body.modal-open {
 /* Game tab art: the CS2 and Roblox marks behind every game selector */
 
 .game-choice[data-platform="cs2"],
-.game-choice[data-game-choice="cs2"],
-.docs-link[data-doc="cs2"] {
+.game-choice[data-game-choice="cs2"] {
   background-image:
     linear-gradient(100deg, rgba(5, 6, 9, 0.96) 26%, rgba(5, 6, 9, 0.72) 62%, rgba(5, 6, 9, 0.4)),
     url("/assets/game-cs2.webp");
@@ -4443,8 +4459,7 @@ body.modal-open {
 }
 
 .game-choice[data-platform="roblox"],
-.game-choice[data-game-choice="roblox"],
-.docs-link[data-doc="roblox"] {
+.game-choice[data-game-choice="roblox"] {
   background-image:
     linear-gradient(100deg, rgba(5, 6, 9, 0.96) 26%, rgba(5, 6, 9, 0.72) 62%, rgba(5, 6, 9, 0.4)),
     url("/assets/game-roblox.webp");
@@ -4459,8 +4474,4 @@ body.modal-open {
   background-position: center, right 14px center;
 }
 
-.docs-link[data-doc] {
-  padding-right: 52px;
-  background-size: cover, 38px auto;
-  background-position: center, right 12px center;
-}
+
