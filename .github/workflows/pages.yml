@@ -28,8 +28,9 @@ jobs:
           mkdir -p _site
           cp *.html _site/
           cp -r assets _site/assets
-          cp -r downloads _site/downloads
           cp CNAME .nojekyll robots.txt _site/
+          # Build zips live under server/builds for the API host only. They are
+          # deliberately not staged: Pages must never serve a downloadable zip.
 
       - uses: actions/configure-pages@v5
 

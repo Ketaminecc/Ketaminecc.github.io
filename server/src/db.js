@@ -157,6 +157,10 @@ for (const sql of [
   'ALTER TABLE orders ADD COLUMN payment_method TEXT',
   'ALTER TABLE orders ADD COLUMN payment_ref TEXT',
   'ALTER TABLE orders ADD COLUMN payment_claimed_at INTEGER',
+  // The game a license is bought for. Added after the first live orders, so
+  // every read falls back to cs2 for rows that predate the column.
+  'ALTER TABLE orders ADD COLUMN game TEXT',
+  'ALTER TABLE licenses ADD COLUMN game TEXT',
 ]) {
   try {
     db.exec(sql);

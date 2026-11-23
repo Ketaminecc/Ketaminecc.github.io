@@ -185,6 +185,23 @@ router.post(
         });
       }
 
+      // A key belongs to the game it was sold for. The desktop loader is the
+      // CS2 product, so a Roblox key has to fail here - before any hardware
+      // binding exists - instead of activating on the wrong client.
+      const game = String(row.game || 'cs2').trim().toLowerCase();
+      if (game !== 'cs2') {
+        audit(`gate:${email}`, 'license.wrong_product', row.id, { game, ip: req.ip });
+        return res.status(403).json({
+          ok: false,
+          status: 'wrong_product',
+          game,
+          error:
+            game === 'roblox'
+              ? 'This key is a Roblox license. This loader only accepts CS2 licenses.'
+              : `This key is for ${game}, not CS2.`,
+        });
+      }
+
       const now = Date.now();
       if (!row.email) {
         db.prepare('UPDATE licenses SET email = ? WHERE id = ?').run(email, row.id);
@@ -248,6 +265,7 @@ router.post(
         token,
         expiresAt: tokenExpiry,
         email,
+        game,
         product: row.product_name || null,
         keyPreview: row.key_preview,
         hwidPreview: binding?.hwid_preview || preview,
@@ -289,6 +307,14 @@ router.post(
     if (status !== 'active') {
       return res.status(403).json({ ok: false, status, error: statusError(status) });
     }
+    // Re-check the platform on every heartbeat: an admin can retag a key.
+    if (String(row.game || 'cs2').trim().toLowerCase() !== 'cs2') {
+      return res.status(403).json({
+        ok: false,
+        status: 'wrong_product',
+        error: 'This key is not a CS2 license.',
+      });
+    }
     db.prepare('UPDATE license_bindings SET last_seen_at = ? WHERE license_id = ?').run(
       Date.now(),
       row.id
@@ -299,6 +325,7 @@ router.post(
       expiresAt: payload.exp,
       licenseExpiresAt: row.expires_at,
       product: row.product_name || null,
+      game: 'cs2',
     });
   }
 );

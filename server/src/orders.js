@@ -43,13 +43,13 @@ function licenseStatus(license) {
   return 'active';
 }
 
-function createOrder(user, product, { status = 'pending', paymentMethod = null } = {}) {
+function createOrder(user, product, { status = 'pending', paymentMethod = null, game = 'cs2' } = {}) {
   const number = generateOrderNumber();
   const id = newId('ord');
   const createdAt = Date.now();
   db.prepare(
-    `INSERT INTO orders (id, number, user_id, product_id, product_name, amount_cents, currency, status, customer_email, payment_method, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (id, number, user_id, product_id, product_name, amount_cents, currency, status, customer_email, payment_method, game, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     number,
@@ -61,6 +61,7 @@ function createOrder(user, product, { status = 'pending', paymentMethod = null }
     status,
     user.email,
     paymentMethod,
+    game,
     createdAt
   );
   return getOrderById(id);
@@ -77,13 +78,15 @@ function createLicenseRecord({
   userId = null,
   email = null,
   status = 'active',
+  game = null,
 }) {
   const id = newId('lic');
   const hash = licenseHash(key);
   const ownerEmail = email || (order ? order.customer_email : null);
+  const ownerGame = game || (order ? order.game : null) || 'cs2';
   db.prepare(
-    `INSERT INTO licenses (id, order_id, user_id, product_id, email, key_enc, key_hash, key_preview, status, issued_at, expires_at, duration_days, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO licenses (id, order_id, user_id, product_id, email, key_enc, key_hash, key_preview, status, issued_at, expires_at, duration_days, game, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     order ? order.id : null,
@@ -97,6 +100,7 @@ function createLicenseRecord({
     issuedAt,
     expiresAt,
     durationDays,
+    ownerGame,
     note
   );
   return db.prepare('SELECT * FROM licenses WHERE id = ?').get(id);
@@ -112,7 +116,7 @@ function generateUniqueKey() {
   return key;
 }
 
-function issueKey({ product, order = null, userId = null, durationDays, note = null, email = null }) {
+function issueKey({ product, order = null, userId = null, durationDays, note = null, email = null, game = null }) {
   const key = generateUniqueKey();
   const issuedAt = Date.now();
   const days = durationDays === undefined ? product.durationDays : durationDays;
@@ -127,6 +131,7 @@ function issueKey({ product, order = null, userId = null, durationDays, note = n
     note,
     userId,
     email,
+    game,
   });
   return { license, key };
 }
@@ -157,10 +162,12 @@ function claimStockKey(order, product) {
   const result = db
     .prepare(
       `UPDATE licenses
-          SET status = 'active', order_id = ?, user_id = ?, email = ?, issued_at = ?, expires_at = ?
+          SET status = 'active', order_id = ?, user_id = ?, email = ?, issued_at = ?, expires_at = ?,
+              game = COALESCE(game, ?)
         WHERE id = ? AND status = 'stock'`
     )
-    .run(order.id, order.user_id, order.customer_email, issuedAt, expiresAt, row.id);
+    .run(order.id, order.user_id, order.customer_email, issuedAt, expiresAt,
+      order.game || 'cs2', row.id);
   if (!result.changes) return null;
   const license = db.prepare('SELECT * FROM licenses WHERE id = ?').get(row.id);
   return { license, key: decryptText(license.key_enc) };
@@ -191,6 +198,7 @@ async function fulfillOrder(order, { paymentIntent = null, sessionId = null, ip 
       order: fresh,
       durationDays: product.durationDays,
       email: fresh.customer_email,
+      game: fresh.game,
     });
   const paidAt = Date.now();
 
@@ -229,6 +237,7 @@ function serializeOrderForUser(order) {
     number: order.number,
     status: order.status,
     productName: order.product_name,
+    game: order.game || 'cs2',
     amountCents: order.amount_cents,
     currency: order.currency,
     paymentMethod: order.payment_method || null,
@@ -285,6 +294,7 @@ function serializeLicenseForUser(row) {
   return {
     id: row.id,
     productName: row.product_name || null,
+    game: row.game || 'cs2',
     email: row.email || null,
     orderNumber: row.order_number || null,
     key,

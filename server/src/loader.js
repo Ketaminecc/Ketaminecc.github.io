@@ -86,6 +86,7 @@ function snapshot(row, options = {}) {
     status,
     active: status === 'active',
     product: row.product_name || null,
+    game: row.game || 'cs2',
     email: maskEmail(row.email),
     order: row.order_number || null,
     keyPreview: row.key_preview,

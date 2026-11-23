@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=21">
+  <link rel="stylesheet" href="/assets/styles.css?v=22">
 </head>
 <body class="page-home">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -81,13 +81,46 @@
     </section>
   </main>
 
+  <div class="game-modal" id="game-modal" hidden>
+    <div class="game-modal-backdrop" data-game-close></div>
+    <div class="game-modal-card" role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+      <div class="game-modal-head">
+        <h2 id="game-modal-title">Choose your game</h2>
+        <button class="game-modal-x" type="button" aria-label="Close" data-game-close>&times;</button>
+      </div>
+      <p class="game-modal-note" id="game-modal-product">Pick the game first — the key is minted for it.</p>
+
+      <div class="modal-step" id="modal-step-game">
+        <div class="game-choices">
+          <button class="game-choice" type="button" data-game-choice="cs2">
+            <span class="game-choice-tag">CS2</span>
+            <b>Counter-Strike 2</b>
+            <small>Loader + internal menu</small>
+          </button>
+          <button class="game-choice" type="button" data-game-choice="roblox">
+            <span class="game-choice-tag">ROBLOX</span>
+            <b>Roblox</b>
+            <small>External build</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-step" id="modal-step-product" hidden>
+        <div class="plan-choices" id="plan-choices"></div>
+        <button class="modal-back" type="button" data-game-back>&larr; Change game</button>
+      </div>
+
+      <p class="game-modal-foot">A key is issued for the plan and game you pick, and will not work on the other game.</p>
+    </div>
+  </div>
+
   <footer class="container simple-footer">
     <span>© <span data-year>2026</span> Ketamine.cc</span>
     <span><a href="/login.html">Sign in</a> · <a href="/dashboard.html">Keys</a> · <a href="/account.html">Account</a> · <a href="/admin.html">Admin</a></span>
   </footer>
 
-  <script src="/assets/config.js?v=21"></script>
-  <script src="/assets/app.js?v=21"></script>
-  <script src="/assets/home.js?v=21"></script>
+  <script src="/assets/config.js?v=23"></script>
+  <script src="/assets/app.js?v=23"></script>
+  <script src="/assets/home.js?v=23"></script>
 </body>
 </html>

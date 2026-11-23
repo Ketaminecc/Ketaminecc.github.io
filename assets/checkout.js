@@ -8,10 +8,59 @@
   let product = null;
   let payments = 'stripe';
   let manual = null;
+  let payBlocked = false;
+
+  // The key is minted for one game; the platform is part of the order, not an
+  // afterthought. There is deliberately no default: a buyer has to pick the
+  // game before the payment step unlocks.
+  const GAMES = ['cs2', 'roblox'];
+  const GAME_LABEL = { cs2: 'Counter-Strike 2', roblox: 'Roblox' };
+  const requested = String(params.get('game') || '').toLowerCase();
+  let game = GAMES.includes(requested) ? requested : null;
+
+  function paintPlatform() {
+    document.querySelectorAll('[data-platform]').forEach((button) => {
+      const active = button.dataset.platform === game;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    const label = game ? GAME_LABEL[game] : 'Not selected';
+    const summary = document.getElementById('summary-game');
+    if (summary) summary.textContent = label;
+    const mode = document.getElementById('game-mode');
+    if (mode) mode.textContent = label;
+  }
+
+  document.querySelectorAll('[data-platform]').forEach((button) => {
+    button.addEventListener('click', () => {
+      game = GAMES.includes(button.dataset.platform) ? button.dataset.platform : null;
+      paintPlatform();
+      const url = new URL(window.location.href);
+      if (game) url.searchParams.set('game', game);
+      else url.searchParams.delete('game');
+      window.history.replaceState({}, '', url);
+      updatePay();
+    });
+  });
 
   function showError(message) {
     errorBox.textContent = message;
     errorBox.classList.add('show');
+  }
+
+  function baseLabel() {
+    if (payments === 'demo') return 'Complete demo checkout';
+    if (payments === 'manual') return 'Create order & pay';
+    if (payments === 'disabled') return 'Payments offline';
+    return 'Continue to Stripe';
+  }
+
+  // One place decides whether the button is live, so a late payment-mode
+  // response cannot re-enable it before a game is picked.
+  function updatePay() {
+    payBtn.disabled = payBlocked || !product || !game;
+    payLabel.textContent = game ? baseLabel() : 'Select a game to continue';
   }
 
   function durationLabel(days) {
@@ -32,7 +81,7 @@
     if (!methods.length) {
       box.hidden = true;
       showError('No manual payment methods are configured yet. Contact support.');
-      payBtn.disabled = true;
+      payBlocked = true;
       return;
     }
     box.innerHTML = methods
@@ -57,7 +106,8 @@
 
     if (!product) {
       showError('No plans are available right now.');
-      payBtn.disabled = true;
+      payBlocked = true;
+      updatePay();
       return;
     }
 
@@ -78,25 +128,25 @@
     const demoBanner = document.getElementById('demo-banner');
     if (payments === 'demo') {
       demoBanner.hidden = false;
-      payLabel.textContent = 'Complete demo checkout';
       document.getElementById('payment-mode').textContent = 'Demo';
     } else if (payments === 'disabled') {
       showError('Payments are not configured yet. Contact support and we will finish the order manually.');
-      payBtn.disabled = true;
-      payLabel.textContent = 'Payments offline';
+      payBlocked = true;
       document.getElementById('payment-mode').textContent = 'Offline';
     } else if (payments === 'manual') {
       document.getElementById('manual-banner').hidden = false;
       document.getElementById('card-data-line').hidden = true;
       document.getElementById('payment-mode').textContent = 'Manual';
       document.getElementById('payment-note').textContent = 'Pay externally · key issued after confirmation';
-      payLabel.textContent = 'Create order & pay';
       renderManualMethods();
     } else {
       document.getElementById('payment-mode').textContent = 'Stripe';
     }
 
     if (params.get('canceled') === '1') document.getElementById('cancel-banner').hidden = false;
+
+    paintPlatform();
+    updatePay();
   }
 
   async function boot() {
@@ -113,12 +163,17 @@
       render(productData.products, site);
     } catch (err) {
       showError(err.message || 'Could not load checkout.');
-      payBtn.disabled = true;
+      payBlocked = true;
+      updatePay();
     }
   }
 
   payBtn.addEventListener('click', async () => {
     if (!product) return;
+    if (!game) {
+      showError('Choose a game first — the key is minted for it and will not work on the other.');
+      return;
+    }
     errorBox.classList.remove('show');
     const method =
       payments === 'manual' ? document.querySelector('input[name="pay-method"]:checked')?.value : null;
@@ -135,7 +190,7 @@
     try {
       const result = await window.KET.api('/api/checkout', {
         method: 'POST',
-        body: { productId: product.id, method },
+        body: { productId: product.id, method, game },
       });
       if (result.mode === 'manual' && result.order?.number) {
         window.location.assign(`/checkout-success.html?order=${encodeURIComponent(result.order.number)}`);
@@ -144,9 +199,9 @@
       if (!result.url) throw new Error('Checkout did not return a destination.');
       window.location.assign(result.url);
     } catch (err) {
-      payBtn.disabled = false;
       payBtn.classList.remove('is-loading');
       payLabel.textContent = original;
+      updatePay();
       showError(err.message || 'Could not start checkout. Try again.');
     }
   });
@@ -155,5 +210,7 @@
     window.KET.logout();
   });
 
+  paintPlatform();
+  updatePay();
   boot();
 })();

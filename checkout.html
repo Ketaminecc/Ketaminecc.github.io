@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/logo-icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png">
-  <link rel="stylesheet" href="/assets/styles.css?v=21">
+  <link rel="stylesheet" href="/assets/styles.css?v=23">
 </head>
 <body class="page-app app-page">
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -33,13 +33,14 @@
     <div class="app-wrap">
       <div class="checkout-steps" aria-label="Checkout progress">
         <span class="cstep done"><b>✓</b> Account</span>
-        <span class="cstep active"><b>2</b> Payment</span>
-        <span class="cstep"><b>3</b> Delivery</span>
+        <span class="cstep active"><b>2</b> Game</span>
+        <span class="cstep"><b>3</b> Payment</span>
+        <span class="cstep"><b>4</b> Delivery</span>
       </div>
 
       <div class="page-head">
         <h1>Checkout.</h1>
-        <p>Key is issued to the signed-in account after payment.</p>
+        <p>Pick the game first — the key is minted for it and will not work on the other.</p>
       </div>
 
       <div class="form-error" id="checkout-error" role="alert"></div>
@@ -66,6 +67,28 @@
             </div>
           </section>
 
+          <section class="panel" style="margin-bottom:1.25rem">
+            <div class="panel-head">
+              <h2>Game</h2>
+              <span class="sub" id="game-mode">Not selected</span>
+            </div>
+            <p class="form-note" style="margin-bottom:.8rem">
+              Choose the game this license is for. Delivery and setup docs are per game.
+            </p>
+            <div class="game-choices">
+              <button class="game-choice" type="button" data-platform="cs2" aria-pressed="false">
+                <span class="game-choice-tag">CS2</span>
+                <b>Counter-Strike 2</b>
+                <small>Loader + internal menu</small>
+              </button>
+              <button class="game-choice" type="button" data-platform="roblox" aria-pressed="false">
+                <span class="game-choice-tag">ROBLOX</span>
+                <b>Roblox</b>
+                <small>External build</small>
+              </button>
+            </div>
+          </section>
+
           <section class="panel">
             <div class="panel-head">
               <h2>Payment</h2>
@@ -78,8 +101,8 @@
             <div class="summary-line"><span>Delivery</span><span style="color:var(--text-soft)">Instant</span></div>
             <div class="summary-line" style="margin-bottom:1.2rem"><span>Refunds</span><a class="link" href="/#questions" style="font-size:.78rem">Policy</a></div>
 
-            <button class="btn btn-primary btn-block" type="button" id="pay-btn">
-              <span id="pay-label">Continue to Stripe</span>
+            <button class="btn btn-primary btn-block" type="button" id="pay-btn" disabled>
+              <span id="pay-label">Select a game to continue</span>
               <span class="arrow" aria-hidden="true">→</span>
             </button>
             <p class="form-note" id="payment-note" style="text-align:center;margin-top:.8rem">Encrypted in transit · signed payment webhook</p>
@@ -99,6 +122,10 @@
               </div>
               <b id="summary-price" class="mono" style="font-size:1rem">—</b>
             </div>
+            <div class="summary-line">
+              <span>Game</span>
+              <span id="summary-game" style="color:var(--text-soft)">Not selected</span>
+            </div>
             <div class="summary-total">
               <span>Total</span>
               <b id="summary-total">—</b>
@@ -112,8 +139,8 @@
     </div>
   </main>
 
-  <script src="/assets/config.js?v=21"></script>
-  <script src="/assets/app.js?v=21"></script>
-  <script src="/assets/checkout.js?v=21"></script>
+  <script src="/assets/config.js?v=23"></script>
+  <script src="/assets/app.js?v=23"></script>
+  <script src="/assets/checkout.js?v=23"></script>
 </body>
 </html>

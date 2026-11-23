@@ -33,6 +33,14 @@ const { sendPaymentClaim } = require('./discord');
 
 const router = express.Router();
 
+// A license belongs to exactly one game. Anything unrecognised falls back to
+// cs2 so a hand-edited request cannot invent a product.
+const GAMES = new Set(['cs2', 'roblox']);
+function normalizeGame(value) {
+  const game = String(value || '').trim().toLowerCase();
+  return GAMES.has(game) ? game : 'cs2';
+}
+
 function mePayload(user) {
   return {
     id: user.id,
@@ -214,11 +222,15 @@ router.post('/checkout', requireUser, rateLimit({ windowMs: 10 * 60_000, max: 15
     if (!manual.methods.includes(method)) {
       return res.status(400).json({ error: 'Choose a valid payment method.' });
     }
-    const order = createOrder(user, product, { status: 'awaiting_payment', paymentMethod: method });
+    const order = createOrder(user, product, {
+      status: 'awaiting_payment',
+      paymentMethod: method,
+      game: normalizeGame(req.body?.game),
+    });
     return res.json({ mode: 'manual', order: serializeOrderForUser(order) });
   }
 
-  const order = createOrder(user, product);
+  const order = createOrder(user, product, { game: normalizeGame(req.body?.game) });
 
   if (mode === 'disabled') {
     db.prepare("UPDATE orders SET status = 'failed' WHERE id = ?").run(order.id);
@@ -474,12 +486,78 @@ router.get('/license/validate', rateLimit({ windowMs: 60_000, max: 90, key: 'val
     valid: status === 'active',
     status,
     product: row.product_name,
+    game: row.game || 'cs2',
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
     order: row.order_number,
     preview: row.key_preview,
   });
 });
+
+// ── Discord bot: HWID reset ──────────────────────────────────────────────────
+/*
+   `!resethwid` in the bot posts here with the shared secret. A reset only
+   deletes the binding row: the license, its email and its expiry are untouched,
+   and the next successful sign in binds whatever machine presents the key.
+   Owner-only by construction - the secret never leaves the bot's .env.
+*/
+router.post(
+  '/internal/hwid-reset',
+  rateLimit({ windowMs: 60_000, max: 30, key: 'hwid-reset' }),
+  (req, res) => {
+    if (!safeEqual(req.headers['x-bot-secret'] || '', config.botSecret)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const key = normalizeLicenseKey(String(req.body?.key || ''));
+    if (key.length < 16) {
+      return res.status(400).json({ error: 'Paste the full license key.' });
+    }
+
+    const row = db
+      .prepare(
+        `SELECT l.*, p.name AS product_name
+           FROM licenses l
+           LEFT JOIN products p ON p.id = l.product_id
+          WHERE l.key_hash = ?`
+      )
+      .get(licenseHash(key));
+    if (!row) return res.status(404).json({ error: 'That license key was not found.' });
+
+    const licensing = require('./licensing');
+    const binding = licensing.bindingForLicense(row.id);
+    const removed = licensing.resetBinding(row.id);
+
+    audit(`discord:${String(req.body?.actor || 'bot').slice(0, 60)}`, 'license.hwid_reset', row.id, {
+      preview: row.key_preview,
+      bound: binding ? binding.hwid_preview : null,
+      ip: binding ? binding.last_ip : null,
+    });
+
+    return res.json({
+      ok: true,
+      removed,
+      keyPreview: row.key_preview,
+      product: row.product_name || null,
+      game: row.game || 'cs2',
+      email: row.email || null,
+      status: row.user_blacklisted ? 'revoked' : licenseStatus(row),
+      expiresAt: row.expires_at,
+      previous: binding
+        ? {
+            hwidPreview: binding.hwid_preview,
+            boundAt: binding.bound_at,
+            lastSeenAt: binding.last_seen_at,
+            lastIp: binding.last_ip,
+            loginCount: Number(binding.login_count) || 0,
+          }
+        : null,
+      nextStep: removed
+        ? 'The next sign in binds a new machine.'
+        : 'This key had no hardware binding; the next sign in will create one.',
+    });
+  }
+);
 
 // ── Discord bot: one-time reveal of encrypted purchase records ───────────────
 

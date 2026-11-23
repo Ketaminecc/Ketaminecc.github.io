@@ -110,8 +110,13 @@ app.use('/api/admin', require('./admin'));
 app.use('/api', require('./licensing'));
 app.use('/api', require('./loader'));
 app.use('/api', require('./public'));
+app.use('/api', require('./downloads').router);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
+
+/* Build downloads are ticket based: the setup guide asks for a link, and the
+   ticket is spent on first use. No build sits behind a guessable static path. */
+app.get('/d/:token', require('./downloads').redeem);
 
 // ── Static site (explicit whitelist — never serve /server) ───────────────────
 
@@ -120,17 +125,6 @@ app.use(
   '/assets',
   express.static(path.join(siteDir, 'assets'), {
     maxAge: config.isProd ? '7d' : 0,
-    fallthrough: true,
-    index: false,
-    dotfiles: 'deny',
-  })
-);
-
-/* The public loader package is a static download, not an API response. */
-app.use(
-  '/downloads',
-  express.static(path.join(siteDir, 'downloads'), {
-    maxAge: config.isProd ? '1h' : 0,
     fallthrough: true,
     index: false,
     dotfiles: 'deny',
