@@ -92,101 +92,18 @@
 
   const GAME_LABEL = { cs2: 'Counter-Strike 2' };
 
-  // Purchase starts with the game. The key is minted for one game, so the
-  // buyer picks the game first and the plan second; the checkout page also
-  // refuses to continue until a game is chosen.
+  // Each product card is a license plan, so the plan is already chosen when the
+  // buyer hits Purchase: go straight to checkout with that product. CS2 is the
+  // only game sold, so the game travels as a constant.
   function installGamePicker() {
-    const modal = document.getElementById('game-modal');
-    const title = document.getElementById('game-modal-title');
-    const note = document.getElementById('game-modal-product');
-    const plans = document.getElementById('plan-choices');
-    const stepProduct = document.getElementById('modal-step-product');
-    const stepGame = document.getElementById('modal-step-game');
-    let product = null;
-    let game = null;
-
-    function close() {
-      if (!modal) return;
-      modal.hidden = true;
-      document.body.classList.remove('modal-open');
-    }
-
-    // The game step is gone from the markup, so guard every use of it: the
-    // modal only ever opens on the plan step now.
-    function showStep(step) {
-      const onGame = step === 'game' && stepGame;
-      if (stepProduct) stepProduct.hidden = onGame;
-      if (stepGame) stepGame.hidden = !onGame;
-      title.textContent = onGame ? 'Choose your game' : 'Choose your plan';
-      note.textContent = onGame
-        ? 'Pick the game first — the key is minted for it.'
-        : `${GAME_LABEL[game] || 'Your game'} — pick a plan.`;
-      const focus = (onGame ? stepGame : stepProduct).querySelector('button');
-      if (focus) focus.focus();
-    }
-
-    function renderPlans(selected) {
-      const list = catalog && catalog.length ? catalog : FALLBACK_PRODUCTS;
-      plans.innerHTML = list
-        .map(
-          (item) => `
-        <button class="plan-choice${item.slug === selected ? ' is-active' : ''}" type="button"
-          data-plan="${window.KET.escape(item.slug)}" data-plan-name="${window.KET.escape(item.name)}">
-          <span class="plan-choice-name">${window.KET.escape(item.name)}</span>
-          <span class="plan-choice-meta">${window.KET.money(item.priceCents, item.currency)} · ${durationLabel(
-            item.durationDays
-          )}</span>
-        </button>`
-        )
-        .join('');
-    }
-
-    function open(slug, name) {
-      if (!modal) {
-        window.location.assign('/checkout.html');
-        return;
-      }
-      product = { slug, name };
-      game = 'cs2';
-      renderPlans(slug);
-      showStep('product');
-      modal.hidden = false;
-      document.body.classList.add('modal-open');
-    }
-
     document.addEventListener('click', (event) => {
       const buy = event.target.closest('[data-buy]');
-      if (buy) {
-        event.preventDefault();
-        open(buy.dataset.buy, buy.dataset.buyName);
-        return;
-      }
-
-      const choice = event.target.closest('[data-game-choice]');
-      if (choice) {
-        event.preventDefault();
-        game = choice.dataset.gameChoice;
-        renderPlans(product ? product.slug : null);
-        showStep('product');
-        return;
-      }
-
-      const plan = event.target.closest('[data-plan]');
-      if (plan) {
-        event.preventDefault();
-        product = { slug: plan.dataset.plan, name: plan.dataset.planName };
-        if (!game) game = 'cs2';
-        window.location.assign(
-          `/checkout.html?product=${encodeURIComponent(product.slug)}&game=${encodeURIComponent(game)}`
-        );
-        return;
-      }
-
-      if (event.target.closest('[data-game-close]')) close();
-    });
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') close();
+      if (!buy) return;
+      event.preventDefault();
+      const slug = buy.dataset.buy || '';
+      window.location.assign(
+        `/checkout.html?product=${encodeURIComponent(slug)}&game=cs2`
+      );
     });
   }
 
