@@ -111,10 +111,12 @@
       document.body.classList.remove('modal-open');
     }
 
+    // The game step is gone from the markup, so guard every use of it: the
+    // modal only ever opens on the plan step now.
     function showStep(step) {
-      const onGame = step === 'game';
-      stepProduct.hidden = onGame;
-      stepGame.hidden = !onGame;
+      const onGame = step === 'game' && stepGame;
+      if (stepProduct) stepProduct.hidden = onGame;
+      if (stepGame) stepGame.hidden = !onGame;
       title.textContent = onGame ? 'Choose your game' : 'Choose your plan';
       note.textContent = onGame
         ? 'Pick the game first — the key is minted for it.'
@@ -145,9 +147,9 @@
         return;
       }
       product = { slug, name };
-      game = null;
+      game = 'cs2';
       renderPlans(slug);
-      showStep('game');
+      showStep('product');
       modal.hidden = false;
       document.body.classList.add('modal-open');
     }
@@ -173,19 +175,10 @@
       if (plan) {
         event.preventDefault();
         product = { slug: plan.dataset.plan, name: plan.dataset.planName };
-        if (!game) {
-          showStep('game');
-          return;
-        }
+        if (!game) game = 'cs2';
         window.location.assign(
           `/checkout.html?product=${encodeURIComponent(product.slug)}&game=${encodeURIComponent(game)}`
         );
-        return;
-      }
-
-      if (event.target.closest('[data-game-back]')) {
-        event.preventDefault();
-        showStep('game');
         return;
       }
 
