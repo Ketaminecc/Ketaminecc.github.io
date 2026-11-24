@@ -9,7 +9,7 @@
   const licenseMeta = document.getElementById('setup-license-meta');
   const licenseGames = document.getElementById('setup-license-games');
 
-  const GAME_LABEL = { cs2: 'Counter-Strike 2', roblox: 'Roblox' };
+  const GAME_LABEL = { cs2: 'Counter-Strike 2' };
   const panels = Array.from(document.querySelectorAll('[data-doc-panel]'));
   const links = Array.from(document.querySelectorAll('[data-doc]'));
 
@@ -25,7 +25,7 @@
     if (message) lockedCopy.textContent = message;
   }
 
-  // One doc at a time, addressed by the hash so /setup#roblox can be linked.
+  // One doc at a time, addressed by the hash so /setup#cs2 can be linked.
   function showDoc(game) {
     const wanted = GAME_LABEL[game] ? game : 'cs2';
 

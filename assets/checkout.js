@@ -13,8 +13,8 @@
   // The key is minted for one game; the platform is part of the order, not an
   // afterthought. There is deliberately no default: a buyer has to pick the
   // game before the payment step unlocks.
-  const GAMES = ['cs2', 'roblox'];
-  const GAME_LABEL = { cs2: 'Counter-Strike 2', roblox: 'Roblox' };
+  const GAMES = ['cs2'];
+  const GAME_LABEL = { cs2: 'Counter-Strike 2' };
   const requested = String(params.get('game') || '').toLowerCase();
   let game = GAMES.includes(requested) ? requested : null;
 

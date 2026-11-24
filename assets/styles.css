@@ -4030,6 +4030,12 @@ body.modal-open {
   gap: 0.8rem;
 }
 
+/* Only one game is sold, so the surviving card takes the full width instead of
+   sitting in the left half of a two-up grid. */
+.game-choice:only-child {
+  grid-column: 1 / -1;
+}
+
 .game-choice {
   text-align: left;
   background: var(--panel-2);

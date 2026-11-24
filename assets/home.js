@@ -90,7 +90,7 @@
   // The live catalog once the API answers; the fallback above until then.
   let catalog = null;
 
-  const GAME_LABEL = { cs2: 'Counter-Strike 2', roblox: 'Roblox' };
+  const GAME_LABEL = { cs2: 'Counter-Strike 2' };
 
   // Purchase starts with the game. The key is minted for one game, so the
   // buyer picks the game first and the plan second; the checkout page also
